@@ -155,8 +155,8 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref, reactive, onMounted, watch } from "vue";
+<script setup lang="ts">
+import { ref, reactive, onMounted, watch } from "vue";
 
 // 定义域名规则类型接口
 interface DomainRule {
@@ -197,233 +197,212 @@ const DEFAULT_CACHE_CONFIG = {
   },
 };
 
-export default defineComponent({
-  name: "OptionsApp",
-  setup() {
-    // 状态
-    const settings = reactive({ ...DEFAULT_SETTINGS });
-    const rulesText = ref("");
-    const saveStatus = ref("");
-    const version = ref("");
-    const cacheConfig = reactive({ ...DEFAULT_CACHE_CONFIG });
+// 状态
+const settings = reactive({ ...DEFAULT_SETTINGS });
+const rulesText = ref("");
+const saveStatus = ref("");
+const version = ref("");
+const cacheConfig = reactive({ ...DEFAULT_CACHE_CONFIG });
 
-    // 创建防抖保存函数
-    const debouncedSaveCache = debounce(async () => {
-      try {
-        await chrome.storage.sync.set({ cacheConfig });
-        console.log("[调试] 缓存配置已保存(防抖):", cacheConfig);
-      } catch (error) {
-        console.error("保存缓存配置失败:", error);
-      }
-    }, 500); // 500ms延迟
+// 创建防抖保存函数
+const debouncedSaveCache = debounce(async () => {
+  try {
+    await chrome.storage.sync.set({ cacheConfig });
+    console.log("[调试] 缓存配置已保存(防抖):", cacheConfig);
+  } catch (error) {
+    console.error("保存缓存配置失败:", error);
+  }
+}, 500); // 500ms延迟
 
-    // 处理规则值变化
-    const handleRuleChange = () => {
-      debouncedSaveCache();
-    };
+// 处理规则值变化
+const handleRuleChange = () => {
+  debouncedSaveCache();
+};
 
-    // 加载设置
-    const loadSettings = async () => {
-      try {
-        const result = await chrome.storage.sync.get("settings");
-        const loadedSettings = result.settings || DEFAULT_SETTINGS;
+// 加载设置
+const loadSettings = async () => {
+  try {
+    const result = await chrome.storage.sync.get("settings");
+    const loadedSettings = result.settings || DEFAULT_SETTINGS;
 
-        // 更新设置
-        Object.assign(settings, loadedSettings);
+    // 更新设置
+    Object.assign(settings, loadedSettings);
 
-        // 更新规则文本
-        rulesText.value = settings.advanced.rules.join("\n");
-      } catch (error) {
-        console.error("加载设置失败:", error);
-      }
-    };
+    // 更新规则文本
+    rulesText.value = settings.advanced.rules.join("\n");
+  } catch (error) {
+    console.error("加载设置失败:", error);
+  }
+};
 
-    // 加载缓存配置
-    const loadCacheConfig = async () => {
-      try {
-        const result = await chrome.storage.sync.get("cacheConfig");
-        let loadedCacheConfig = result.cacheConfig;
+// 加载缓存配置
+const loadCacheConfig = async () => {
+  try {
+    const result = await chrome.storage.sync.get("cacheConfig");
+    let loadedCacheConfig = result.cacheConfig;
 
-        // 如果没有配置或配置不完整，使用默认配置
-        if (!loadedCacheConfig) {
-          console.log("[调试] 未找到缓存配置，使用默认配置");
-          loadedCacheConfig = JSON.parse(JSON.stringify(DEFAULT_CACHE_CONFIG));
-        }
+    // 如果没有配置或配置不完整，使用默认配置
+    if (!loadedCacheConfig) {
+      console.log("[调试] 未找到缓存配置，使用默认配置");
+      loadedCacheConfig = JSON.parse(JSON.stringify(DEFAULT_CACHE_CONFIG));
+    }
 
-        // 确保domainRules结构完整
-        if (!loadedCacheConfig.domainRules) {
-          console.log("[调试] domainRules不存在，使用默认值");
-          loadedCacheConfig.domainRules = {
-            checkAll: true,
-            rules: [] as DomainRule[],
+    // 确保domainRules结构完整
+    if (!loadedCacheConfig.domainRules) {
+      console.log("[调试] domainRules不存在，使用默认值");
+      loadedCacheConfig.domainRules = {
+        checkAll: true,
+        rules: [] as DomainRule[],
+      };
+    }
+
+    // 确保checkAll属性存在，并默认为true
+    if (loadedCacheConfig.domainRules.checkAll === undefined) {
+      console.log("[调试] checkAll未定义，设置为true");
+      loadedCacheConfig.domainRules.checkAll = true;
+    }
+
+    // 确保rules是一个数组
+    if (!Array.isArray(loadedCacheConfig.domainRules.rules)) {
+      loadedCacheConfig.domainRules.rules = [] as DomainRule[];
+    } else {
+      // 确保每个规则都有正确的属性
+      loadedCacheConfig.domainRules.rules =
+        loadedCacheConfig.domainRules.rules.map((rule) => {
+          // 确保rule是对象
+          if (!rule || typeof rule !== "object") {
+            return {
+              value: "",
+              type: "string" as const,
+              matchType: "partial" as const,
+            };
+          }
+
+          // 确保必要属性存在
+          return {
+            value: typeof rule.value === "string" ? rule.value : "",
+            type: rule.type === "regex" ? "regex" : "string",
+            matchType: rule.matchType === "exact" ? "exact" : "partial",
           };
-        }
-
-        // 确保checkAll属性存在，并默认为true
-        if (loadedCacheConfig.domainRules.checkAll === undefined) {
-          console.log("[调试] checkAll未定义，设置为true");
-          loadedCacheConfig.domainRules.checkAll = true;
-        }
-
-        // 确保rules是一个数组
-        if (!Array.isArray(loadedCacheConfig.domainRules.rules)) {
-          loadedCacheConfig.domainRules.rules = [] as DomainRule[];
-        } else {
-          // 确保每个规则都有正确的属性
-          loadedCacheConfig.domainRules.rules =
-            loadedCacheConfig.domainRules.rules.map((rule) => {
-              // 确保rule是对象
-              if (!rule || typeof rule !== "object") {
-                return {
-                  value: "",
-                  type: "string" as const,
-                  matchType: "partial" as const,
-                };
-              }
-
-              // 确保必要属性存在
-              return {
-                value: typeof rule.value === "string" ? rule.value : "",
-                type: rule.type === "regex" ? "regex" : "string",
-                matchType: rule.matchType === "exact" ? "exact" : "partial",
-              };
-            });
-        }
-
-        // 更新缓存配置
-        Object.assign(cacheConfig, loadedCacheConfig);
-        console.log("[调试] 加载的缓存配置:", cacheConfig);
-      } catch (error) {
-        console.error("加载缓存配置失败:", error);
-      }
-    };
-
-    // 保存设置
-    const saveSettings = async () => {
-      try {
-        await chrome.storage.sync.set({ settings });
-        saveStatus.value = "success";
-
-        // 3秒后清除状态消息
-        setTimeout(() => {
-          saveStatus.value = "";
-        }, 3000);
-      } catch (error) {
-        console.error("保存设置失败:", error);
-        saveStatus.value = "error";
-      }
-    };
-
-    // 添加域名匹配规则
-    const addDomainRule = async () => {
-      try {
-        const newRule: DomainRule = {
-          value: "",
-          type: "string",
-          matchType: "partial",
-        };
-        cacheConfig.domainRules.rules.push(newRule);
-        await chrome.storage.sync.set({ cacheConfig });
-        console.log(
-          "[调试] 已添加新规则，当前规则数:",
-          cacheConfig.domainRules.rules.length
-        );
-      } catch (error) {
-        console.error("[调试] 添加规则失败:", error);
-      }
-    };
-
-    // 删除域名匹配规则
-    const removeDomainRule = async (index) => {
-      try {
-        cacheConfig.domainRules.rules.splice(index, 1);
-        await chrome.storage.sync.set({ cacheConfig });
-        console.log(
-          "[调试] 已删除规则，当前规则数:",
-          cacheConfig.domainRules.rules.length
-        );
-      } catch (error) {
-        console.error("[调试] 删除规则失败:", error);
-      }
-    };
-
-    // 更新规则
-    const updateRules = () => {
-      // 按行分割并过滤空行
-      settings.advanced.rules = rulesText.value
-        .split("\n")
-        .map((rule) => rule.trim())
-        .filter((rule) => rule.length > 0);
-
-      saveSettings();
-    };
-
-    // 重置为默认设置
-    const resetSettings = () => {
-      Object.assign(settings, DEFAULT_SETTINGS);
-      rulesText.value = settings.advanced.rules.join("\n");
-      saveSettings();
-    };
-
-    // 重置配置
-    const resetConfig = async () => {
-      try {
-        await chrome.storage.sync.remove("cacheConfig");
-        Object.assign(cacheConfig, DEFAULT_CACHE_CONFIG);
-        console.log("[调试] 配置已重置");
-      } catch (error) {
-        console.error("重置配置失败:", error);
-      }
-    };
-
-    // 监听规则变化
-    watch(
-      () => settings.advanced.rules,
-      (newRules) => {
-        rulesText.value = newRules.join("\n");
-      }
-    );
-
-    // 在组件挂载后执行
-    onMounted(async () => {
-      try {
-        console.log("[调试] 组件挂载，初始化...");
-        // 强制设置默认状态
-        cacheConfig.domainRules.checkAll = true;
-
-        // 加载设置和缓存配置
-        await loadSettings();
-        await loadCacheConfig();
-
-        // 获取版本
-        const manifest = chrome.runtime.getManifest();
-        version.value = manifest.version;
-
-        console.log("[调试] 初始状态:", {
-          settings: { ...settings },
-          cacheConfig: { ...cacheConfig },
         });
-      } catch (err) {
-        console.error("[调试] 初始化出错:", err);
-      }
-    });
+    }
 
-    return {
-      settings,
-      rulesText,
-      saveStatus,
-      version,
-      cacheConfig,
-      saveSettings,
-      updateRules,
-      resetSettings,
-      addDomainRule,
-      removeDomainRule,
-      handleRuleChange,
-      debouncedSaveCache,
-      resetConfig,
+    // 更新缓存配置
+    Object.assign(cacheConfig, loadedCacheConfig);
+    console.log("[调试] 加载的缓存配置:", cacheConfig);
+  } catch (error) {
+    console.error("加载缓存配置失败:", error);
+  }
+};
+
+// 保存设置
+const saveSettings = async () => {
+  try {
+    await chrome.storage.sync.set({ settings });
+    saveStatus.value = "success";
+
+    // 3秒后清除状态消息
+    setTimeout(() => {
+      saveStatus.value = "";
+    }, 3000);
+  } catch (error) {
+    console.error("保存设置失败:", error);
+    saveStatus.value = "error";
+  }
+};
+
+// 添加域名匹配规则
+const addDomainRule = async () => {
+  try {
+    const newRule: DomainRule = {
+      value: "",
+      type: "string",
+      matchType: "partial",
     };
-  },
+    cacheConfig.domainRules.rules.push(newRule);
+    await chrome.storage.sync.set({ cacheConfig });
+    console.log(
+      "[调试] 已添加新规则，当前规则数:",
+      cacheConfig.domainRules.rules.length
+    );
+  } catch (error) {
+    console.error("[调试] 添加规则失败:", error);
+  }
+};
+
+// 删除域名匹配规则
+const removeDomainRule = async (index: number) => {
+  try {
+    cacheConfig.domainRules.rules.splice(index, 1);
+    await chrome.storage.sync.set({ cacheConfig });
+    console.log(
+      "[调试] 已删除规则，当前规则数:",
+      cacheConfig.domainRules.rules.length
+    );
+  } catch (error) {
+    console.error("[调试] 删除规则失败:", error);
+  }
+};
+
+// 更新规则
+const updateRules = () => {
+  // 按行分割并过滤空行
+  settings.advanced.rules = rulesText.value
+    .split("\n")
+    .map((rule) => rule.trim())
+    .filter((rule) => rule.length > 0);
+
+  saveSettings();
+};
+
+// 重置为默认设置
+const resetSettings = () => {
+  Object.assign(settings, DEFAULT_SETTINGS);
+  rulesText.value = settings.advanced.rules.join("\n");
+  saveSettings();
+};
+
+// 重置配置
+const resetConfig = async () => {
+  try {
+    await chrome.storage.sync.remove("cacheConfig");
+    Object.assign(cacheConfig, DEFAULT_CACHE_CONFIG);
+    console.log("[调试] 配置已重置");
+  } catch (error) {
+    console.error("重置配置失败:", error);
+  }
+};
+
+// 监听规则变化
+watch(
+  () => settings.advanced.rules,
+  (newRules) => {
+    rulesText.value = newRules.join("\n");
+  }
+);
+
+// 在组件挂载后执行
+onMounted(async () => {
+  try {
+    console.log("[调试] 组件挂载，初始化...");
+    // 强制设置默认状态
+    cacheConfig.domainRules.checkAll = true;
+
+    // 加载设置和缓存配置
+    await loadSettings();
+    await loadCacheConfig();
+
+    // 获取版本
+    const manifest = chrome.runtime.getManifest();
+    version.value = manifest.version;
+
+    console.log("[调试] 初始状态:", {
+      settings: { ...settings },
+      cacheConfig: { ...cacheConfig },
+    });
+  } catch (err) {
+    console.error("[调试] 初始化出错:", err);
+  }
 });
 </script>
 
