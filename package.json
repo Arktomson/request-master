@@ -1,0 +1,27 @@
+{
+  "name": "chrome-extension-vue3",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --mode development --outDir dist",
+    "dev:watch": "nodemon --watch src --ext vue,ts,js,json --exec \"npm run dev\"",
+    "build": "vite build --mode production --outDir dist-prod",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "element-plus": "^2.9.5",
+    "vue": "^3.4.15"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.21",
+    "@types/chrome": "^0.0.258",
+    "@types/node": "^20.11.19",
+    "@vitejs/plugin-vue": "^5.0.3",
+    "nodemon": "^2.0.22",
+    "terser": "^5.39.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0",
+    "vue-tsc": "^2.2.4"
+  }
+}
