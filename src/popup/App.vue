@@ -8,14 +8,14 @@
     <main class="popup-content">
       <div class="status-section">
         <p>状态: <span class="status-badge" :class="{ active: isActive }">
-          {{ isActive ? '激活' : '未激活' }}</span>
+          {{ isActive ? '激活' : 'notActive' }}</span>
         </p>
         <button @click="toggleActive" class="toggle-btn" :class="{ active: isActive }">
           {{ isActive ? '停用' : '启用' }}
         </button>
       </div>
       
-      <div class="stats-section" v-if="cacheStats">
+      <div class="stats-section"  v-if="cacheStats">
         <h2>缓存统计</h2>
         <div class="stats-grid">
           <div class="stat-item">
@@ -36,6 +36,7 @@
 </template>
 
 <script lang="ts">
+import { Storage } from '@/utils';
 import { defineComponent, ref, onMounted } from 'vue'
 
 interface CacheStats {
@@ -51,7 +52,7 @@ export default defineComponent({
   name: 'PopupApp',
   setup() {
     const isActive = ref(false)
-    const cacheStats = ref<CacheStats | null>(null)
+    const cacheStats = ref<CacheStats | {}>({})
     
     // 格式化字节
     const formatBytes = (bytes: number): string => {
@@ -65,17 +66,16 @@ export default defineComponent({
     // 切换激活状态
     const toggleActive = () => {
       isActive.value = !isActive.value
-      chrome.storage.local.set({ isActive: isActive.value })
-      
+      Storage.set({ settings: { disasterRecoveryProcessing: isActive.value } })
       // 向当前标签页发送消息
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.id) {
-          chrome.tabs.sendMessage(tabs[0].id, { 
-            type: 'TOGGLE_STATE', 
-            isActive: isActive.value 
-          })
-        }
-      })
+      // chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      //   if (tabs[0]?.id) {
+      //     chrome.tabs.sendMessage(tabs[0].id, { 
+      //       type: 'TOGGLE_STATE', 
+      //       isActive: isActive.value 
+      //     })
+      //   }
+      // })
     }
     
     // 加载缓存统计数据
@@ -94,14 +94,14 @@ export default defineComponent({
       });
     }
     
-    onMounted(() => {
+    onMounted(async () => {
       // 获取当前激活状态
-      chrome.storage.local.get(['isActive'], (result) => {
-        isActive.value = result.isActive !== false
-      })
-      
+      const {disasterRecoveryProcessing} = await Storage.get('settings')   
+      console.log(disasterRecoveryProcessing)
+      isActive.value = disasterRecoveryProcessing
+    
       // 加载缓存统计数据
-      loadCacheStats();
+      // loadCacheStats();
     })
     
     return {

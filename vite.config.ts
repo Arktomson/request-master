@@ -67,17 +67,40 @@ export default defineConfig(({ mode, command }) => {
       outDir,
       // Vite自带的清空目录选项
       emptyOutDir: true,
-      // 完全禁用sourcemap
-      sourcemap: false,
+      // 根据环境设置 sourcemap
+      sourcemap: isDev, // 开发环境开启，生产环境关闭
       // 配置入口点
       rollupOptions: {
         input: {
-          // 原有入口
-          background: resolve(__dirname, "src/background/index.html"),
           popup: resolve(__dirname, "src/popup/index.html"),
           options: resolve(__dirname, "src/options/index.html"),
-          // 新增入口 - 缓存查看器
-          cacheViewer: resolve(__dirname, "src/cache-viewer/index.html"),
+          background: resolve(__dirname, "src/background/index.ts"),
+          content: resolve(__dirname, "src/content/index.ts"),
+          inject: resolve(__dirname, "src/content/inject.ts"),
+          "cache-viewer": resolve(__dirname, "src/cache-viewer/index.html"),
+        },
+        output: {
+          entryFileNames: (chunkInfo) => {
+            // 为 inject.js 使用固定名称
+            if (chunkInfo.name === 'inject') {
+              return 'inject.js';
+            }
+            return '[name].js';
+          },
+          chunkFileNames: (chunkInfo) => {
+            // 处理特殊文件名
+            if (chunkInfo.name.startsWith('_')) {
+              return `vendor-${Date.now()}.js`;
+            }
+            return '[name].js';
+          },
+          assetFileNames: (assetInfo) => {
+            // 处理特殊文件名
+            if (assetInfo.name.startsWith('_')) {
+              return `vendor-${Date.now()}.[ext]`;
+            }
+            return '[name].[ext]';
+          },
         },
         // 生产环境特定配置
         ...(isProd && {
@@ -98,6 +121,18 @@ export default defineConfig(({ mode, command }) => {
           exclude: ["node_modules/**", "dist/**", "dist-prod/**"],
         },
       }),
+      // 或者更详细的配置
+      ...(isDev && {
+        sourcemap: true,
+        minify: false,
+        watch: {
+          clearScreen: false,
+          exclude: ["node_modules/**", "dist/**", "dist-prod/**"],
+        },
+      }),
+      ...(isProd && {
+        sourcemap: false, // 生产环境关闭
+      }),
     },
     // 根据环境设置不同的变量
     define: {
@@ -106,7 +141,7 @@ export default defineConfig(({ mode, command }) => {
     },
     // 开发服务器配置
     server: {
-      port: 3000,
+      port: 5173,
       strictPort: true, // 指定端口被占用时直接退出而不是尝试下一个可用端口
       hmr: {
         // 热更新配置

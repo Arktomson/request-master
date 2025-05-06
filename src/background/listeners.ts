@@ -158,104 +158,104 @@ export const requestListeners = {
     }
 
     // 获取响应内容
-    try {
-      // 在MV3中不能直接读取响应内容，这里我们尝试通过fetch重新获取
-      // 注意: 这种方法并不完美，尤其是对于需要认证的请求
-      if (isApiRequest) {
-        // 对于API请求，尝试重新获取并保存完整响应
-        console.log(`[调试-onCompleted] 尝试通过fetch获取API响应: ${url}`);
+    // try {
+    //   // 在MV3中不能直接读取响应内容，这里我们尝试通过fetch重新获取
+    //   // 注意: 这种方法并不完美，尤其是对于需要认证的请求
+    //   if (isApiRequest) {
+    //     // 对于API请求，尝试重新获取并保存完整响应
+    //     console.log(`[调试-onCompleted] 尝试通过fetch获取API响应: ${url}`);
 
-        // 使用fetch获取响应内容并保存
-        fetch(url, {
-          method: "GET",
-          headers: {
-            "Cache-Control": "no-cache",
-          },
-          // 如果有需要，可以传递认证信息
-          // credentials: 'include',
-        })
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.text();
-          })
-          .then((text) => {
-            let responseData;
-            // 尝试解析JSON数据
-            try {
-              responseData = JSON.parse(text);
-            } catch (e) {
-              // 如果不是JSON，直接使用文本
-              responseData = text;
-            }
+    //     // 使用fetch获取响应内容并保存
+    //     fetch(url, {
+    //       method: "GET",
+    //       headers: {
+    //         "Cache-Control": "no-cache",
+    //       },
+    //       // 如果有需要，可以传递认证信息
+    //       // credentials: 'include',
+    //     })
+    //       .then((response) => {
+    //         if (!response.ok) {
+    //           throw new Error(`HTTP error! status: ${response.status}`);
+    //         }
+    //         return response.text();
+    //       })
+    //       .then((text) => {
+    //         let responseData;
+    //         // 尝试解析JSON数据
+    //         try {
+    //           responseData = JSON.parse(text);
+    //         } catch (e) {
+    //           // 如果不是JSON，直接使用文本
+    //           responseData = text;
+    //         }
 
-            const size = text.length;
-            console.log(
-              `[调试-onCompleted] 成功获取API响应: ${url}, 大小: ${size}字节`
-            );
+    //         const size = text.length;
+    //         console.log(
+    //           `[调试-onCompleted] 成功获取API响应: ${url}, 大小: ${size}字节`
+    //         );
 
-            // 创建缓存项
-            const cacheItem: CacheItem = {
-              url: responseInfo.url,
-              response: responseData,
-              headers: responseInfo.headers,
-              timestamp: Date.now(),
-              contentType: responseInfo.contentType,
-              size: size,
-              status: responseInfo.status,
-            };
+    //         // 创建缓存项
+    //         const cacheItem: CacheItem = {
+    //           url: responseInfo.url,
+    //           response: responseData,
+    //           headers: responseInfo.headers,
+    //           timestamp: Date.now(),
+    //           contentType: responseInfo.contentType,
+    //           size: size,
+    //           status: responseInfo.status,
+    //         };
 
-            // 存储到缓存
-            return cacheDb.set(cacheItem);
-          })
-          .then(() => {
-            console.log(`[调试-onCompleted] 成功缓存API响应: ${url}`);
-            // 可以更新缓存统计
-          })
-          .catch((error) => {
-            console.error(
-              `[调试-onCompleted] 获取或缓存API响应失败: ${url}`,
-              error
-            );
-          });
-      } else {
-        // 对于非API请求，使用模拟数据
-        const response = {
-          data: {}, // 模拟数据
-          timestamp: Date.now(),
-        };
+    //         // 存储到缓存
+    //         return cacheDb.set(cacheItem);
+    //       })
+    //       .then(() => {
+    //         console.log(`[调试-onCompleted] 成功缓存API响应: ${url}`);
+    //         // 可以更新缓存统计
+    //       })
+    //       .catch((error) => {
+    //         console.error(
+    //           `[调试-onCompleted] 获取或缓存API响应失败: ${url}`,
+    //           error
+    //         );
+    //       });
+    //   } else {
+    //     // 对于非API请求，使用模拟数据
+    //     const response = {
+    //       data: {}, // 模拟数据
+    //       timestamp: Date.now(),
+    //     };
 
-        const size = JSON.stringify(response).length;
-        console.log(
-          `[调试-onCompleted] 将缓存非API响应: ${url}, 大小: ${size}字节`
-        );
+    //     const size = JSON.stringify(response).length;
+    //     console.log(
+    //       `[调试-onCompleted] 将缓存非API响应: ${url}, 大小: ${size}字节`
+    //     );
 
-        // 创建缓存项
-        const cacheItem: CacheItem = {
-          url: responseInfo.url,
-          response: response.data,
-          headers: responseInfo.headers,
-          timestamp: response.timestamp,
-          contentType: responseInfo.contentType,
-          size: size,
-          status: responseInfo.status,
-        };
+    //     // 创建缓存项
+    //     const cacheItem: CacheItem = {
+    //       url: responseInfo.url,
+    //       response: response.data,
+    //       headers: responseInfo.headers,
+    //       timestamp: response.timestamp,
+    //       contentType: responseInfo.contentType,
+    //       size: size,
+    //       status: responseInfo.status,
+    //     };
 
-        // 存储到缓存
-        cacheDb
-          .set(cacheItem)
-          .then(() => {
-            console.log(`[调试-onCompleted] 成功缓存非API响应: ${url}`);
-            updateCacheStats(false, size);
-          })
-          .catch((error) => {
-            console.error(`[调试-onCompleted] 缓存失败: ${url}`, error);
-          });
-      }
-    } catch (error) {
-      console.error(`[调试-onCompleted] 获取或处理响应失败: ${url}`, error);
-    }
+    //     // 存储到缓存
+    //     cacheDb
+    //       .set(cacheItem)
+    //       .then(() => {
+    //         console.log(`[调试-onCompleted] 成功缓存非API响应: ${url}`);
+    //         updateCacheStats(false, size);
+    //       })
+    //       .catch((error) => {
+    //         console.error(`[调试-onCompleted] 缓存失败: ${url}`, error);
+    //       });
+    //   }
+    // } catch (error) {
+    //   console.error(`[调试-onCompleted] 获取或处理响应失败: ${url}`, error);
+    // }
   },
 };
 

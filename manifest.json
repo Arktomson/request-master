@@ -1,15 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "Vue3 Chrome Extension",
+  "name": "request-cache",
   "version": "0.0.1",
-  "description": "Chrome Extension developed with Vue3 and TypeScript",
+  "description": "request cache",
   "permissions": [
     "storage",
     "tabs",
     "webRequest",
     "webNavigation",
     "declarativeNetRequest",
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "declarativeNetRequestFeedback",
+    "proxy",
+    "debugger"
   ],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -28,12 +31,14 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/content/index.ts"]
+      "js": ["src/content/index.ts"],
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["assets/*", "src/cache-viewer/*"],
+      "resources": ["assets/*", "inject.js"],
       "matches": ["<all_urls>"]
     }
   ],
