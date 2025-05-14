@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "element-plus": "^2.9.5",
-    "vue": "^3.5.13"
+    "normalize.css": "^8.0.1",
+    "vue": "^3.5.13",
+    "webext-bridge": "^6.0.1"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0-beta.21",
@@ -19,6 +21,8 @@
     "@types/node": "^20.11.19",
     "@vitejs/plugin-vue": "^5.0.3",
     "nodemon": "^2.0.22",
+    "sass": "^1.88.0",
+    "sass-loader": "^16.0.5",
     "terser": "^5.39.0",
     "typescript": "^5.3.3",
     "vite": "^5.1.0",

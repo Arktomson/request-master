@@ -1,15 +1,22 @@
 // Storage类封装
 class Storage {
   // 获取存储中的数据
+  static getAll(): Promise<Record<string, any>> {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(null, (items) => {
+        resolve(items);
+      });
+    });
+  }
   static get(
     keys: string | string[],
     callback?: (items: { [key: string]: any }) => void
   ): Promise<any> | void {
     if (callback) {
-      chrome.storage.local.get(keys, callback)
+      chrome.storage.local.get(keys, callback);
       return;
     }
-    
+
     return new Promise((resolve) => {
       chrome.storage.local.get(keys, (items) => {
         if (Array.isArray(keys)) {
@@ -39,7 +46,7 @@ class Storage {
       chrome.storage.local.set(items, callback);
       return;
     }
-    
+
     return new Promise((resolve) => {
       chrome.storage.local.set(items, () => {
         resolve();
@@ -59,4 +66,3 @@ class Storage {
 }
 
 export default Storage;
-
