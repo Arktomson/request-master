@@ -1,12 +1,43 @@
 // @ts-nocheck
-function isValidCommunication(event) {
-  if (event.source !== window) {
-    return;
-  }
-  const { data } = event || {};
-  return data?.from && data?.to;
-}
+// @rollup-plugin-ignore
 
+import { ProcessStatus, serverTempErrorCodes } from "@/config";
+import { AjaxHookRequest, AjaxHookResponse } from "@/types/ajaxHook";
+import { generateCacheKey, normalizeUrl } from "@/utils";
+
+function checkStatus(
+  request: AjaxHookRequest,
+  respone: AjaxHookResponse,
+  cacheData: Record<string, any>
+): {
+  status: ProcessStatus;
+  statusText: string;
+  response: string;
+} {
+  let status = ProcessStatus.CACHE;
+  let isHasCacheData = false;
+  const isError = serverTempErrorCodes.includes(respone.status);
+  const cacheKey = generateCacheKey(
+    normalizeUrl(respone.finalUrl),
+    request.data,
+    request.method
+  );
+  console.log(cacheKey, "cacheKey");
+  if (cacheData[cacheKey]) {
+    isHasCacheData = true;
+  }
+  if (isError && !isHasCacheData) {
+    status = ProcessStatus.ERROR_NO_CACHE;
+  } else if (isError && isHasCacheData) {
+    status = ProcessStatus.RECOVERY;
+  } else if (!isError && isHasCacheData) {
+    status = ProcessStatus.CACHE;
+  }
+  return {
+    status,
+    cacheKey,
+  };
+}
 function filterSituation(resp) {
   if (!resp) return false;
   const { responseHeaders } = resp;
@@ -22,11 +53,39 @@ const ajaxHooker = (function () {
     hookFns: [],
     filters: [],
   };
+
+  // 添加处理JSON响应的辅助函数
+  function modifyJsonResponse(res, modifier) {
+    try {
+      const tranferJson = res.responseText
+        ? JSON.parse(res.responseText)
+        : res.responseText;
+
+      // 应用修改函数
+      const modified = modifier(tranferJson);
+
+      // 将修改后的对象重新序列化为字符串
+      res.responseText = JSON.stringify(modified);
+      res.response = JSON.stringify(modified);
+    } catch (error) {
+      console.error("修改JSON响应时出错:", error);
+    }
+
+    return res;
+  }
+
   const win = window; // Chrome扩展注入脚本环境中没有unsafeWindow
   let winAh = win.__ajaxHooker;
   const resProto = win.Response.prototype;
-  const xhrResponses = ["response", "responseText", "responseXML"];
+  const xhrResponses = [
+    "response",
+    "responseText",
+    "responseXML",
+    "status",
+    "statusText",
+  ];
   const fetchResponses = ["arrayBuffer", "blob", "formData", "json", "text"];
+  const commonResponseProps = ["status", "statusText"];
   const fetchInitProps = [
     "method",
     "headers",
@@ -177,8 +236,8 @@ const ajaxHooker = (function () {
       return Promise.all(promises);
     }
     waitForResponseKeys(response) {
-      const responseKeys =
-        this.request.type === "xhr" ? xhrResponses : fetchResponses;
+      const base = this.request.type === "xhr" ? xhrResponses : fetchResponses;
+      const responseKeys = [...base, ...commonResponseProps];
       if (!this.request.async) {
         if (getType(this.request.response) === "[object Function]") {
           catchError(this.request.response, response);
@@ -276,7 +335,7 @@ const ajaxHooker = (function () {
             responseHeaders: parseHeaders(ah.proxyXhr.getAllResponseHeaders()),
           };
           const tempValues = {};
-          for (const key of xhrResponses) {
+          for (const key of xhrResponses.concat(commonResponseProps)) {
             try {
               tempValues[key] = ah.originalXhr[key];
             } catch (err) {}
@@ -514,7 +573,7 @@ const ajaxHooker = (function () {
             status: res.status,
             responseHeaders: parseHeaders(res.headers),
           };
-          fetchResponses.forEach(
+          [...fetchResponses, ...commonResponseProps].forEach(
             (key) =>
               (res[key] = function () {
                 if (key in response) return Promise.resolve(response[key]);
@@ -640,53 +699,73 @@ const ajaxHooker = (function () {
         delete win.__ajaxHooker;
       }
     },
+    // 添加JSON辅助方法
+    modifyJsonResponse: modifyJsonResponse,
   };
 
   return window.__ajaxHookerExtension;
 })();
 
 // 添加消息监听器，允许content script控制
-window.addEventListener("message", (event) => {
-  if (!isValidCommunication(event)) {
-    return;
-  }
-
+window.addEventListener("content_to_ajaxHook", (event) => {
   const {
-    data: { from, to, message },
+    detail: { type, message },
   } = event;
 
-  if (from === "content" && to === "ajaxHook") {
-    ajaxHooker.hook((request) => {
-      // 向content script发送请求信息
-      // window.dispatchEvent(
-      //   new CustomEvent("ajaxHook_request", {
-      //     detail: JSON.stringify({
-      //       url: request.url,
-      //       method: request.method,
-      //       headers: request.headers,
-      //       data: request.data,
-      //       type: request.type,
-      //     }),
-      //   })
-      // );
-
-      // 处理响应
-      request.response = (resp) => {
+  if (type === "init") {
+    const cacheData = JSON.parse(
+      localStorage.getItem("request_cache_data") || "{}"
+    );
+    ajaxHooker.hook((request: AjaxHookRequest) => {
+      console.log("request ajaxHook", request);
+      request.response = (resp: AjaxHookResponse) => {
         if (!filterSituation(resp)) {
           return resp;
         }
-        const { responseText, finalUrl, responseHeaders } = resp;
-
-        // if (finalUrl === "https://zfcg.czt.zj.gov.cn/portal/searchHome") {
-        //   const response = JSON.parse(res.responseText);
-        //   response.result.data.children.splice(1, 20);
-        //   console.log("response", response.result.data.children);
-        //   res.responseText = JSON.stringify(response);
-        //   return res;
-        // }
-        console.log("content-type", responseHeaders["content-type"]);
         console.log("response ajaxHook", resp);
-        return resp;
+
+        return ajaxHooker.modifyJsonResponse(
+          resp as AjaxHookResponse,
+          (json: Record<string, any>) => {
+            const { status, cacheKey } = checkStatus(request, resp, cacheData);
+            switch (status) {
+              case ProcessStatus.RECOVERY:
+                console.log("命中缓存", cacheKey);
+                resp.status = 200;
+                resp.statusText = "OK";
+                json = cacheData[cacheKey].cacheResponse;
+
+                window.dispatchEvent(
+                  new CustomEvent("ajaxHook_to_content", {
+                    detail: {
+                      type: "cache_hit",
+                      message: {
+                        url: resp.finalUrl,
+                        method: request.method,
+                        params: request.data,
+                        response: json,
+                      },
+                    },
+                  })
+                );
+                break;
+              case ProcessStatus.CACHE:
+                cacheData[cacheKey] = {
+                  cacheResponse: json,
+                  cacheReqParams: request.data,
+                };
+                localStorage.setItem(
+                  "request_cache_data",
+                  JSON.stringify(cacheData)
+                );
+                break;
+              case ProcessStatus.ERROR_NO_CACHE:
+                break;
+            }
+
+            return json; // 返回修改后的json
+          }
+        );
       };
     });
   }

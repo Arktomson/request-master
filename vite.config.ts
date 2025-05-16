@@ -27,7 +27,7 @@ export default defineConfig(({ mode, command }) => {
       alias: {
         "@": resolve(__dirname, "src"),
       },
-      extensions: [".ts",".vue"]
+      extensions: [".ts", ".vue"],
     },
     build: {
       // 根据环境设置输出目录
@@ -48,10 +48,6 @@ export default defineConfig(({ mode, command }) => {
         },
         output: {
           entryFileNames: (chunkInfo) => {
-            // 为 inject.js 使用固定名称
-            if (chunkInfo.name === "inject") {
-              return "inject.js";
-            }
             return "[name].js";
           },
           chunkFileNames: (chunkInfo) => {
@@ -68,6 +64,17 @@ export default defineConfig(({ mode, command }) => {
             }
             return "[name].[ext]";
           },
+          manualChunks: (id, { getModuleInfo }) => {
+            // 对ajaxHook入口相关的依赖不做代码分割，强制内联到同一文件
+            // if (
+            //   id.includes("src/content/ajaxHook") ||
+            //   getModuleInfo(id)?.importers.some((i) =>
+            //     i.includes("src/content/ajaxHook")
+            //   )
+            // ) {
+            //   return "ajaxHook";
+            // }
+          },
         },
         // // 生产环境特定配置
         // ...(isProd && {
@@ -82,11 +89,11 @@ export default defineConfig(({ mode, command }) => {
       // 开发环境特定配置
       ...(isDev && {
         minify: false,
-        watch: {
-          // 修改watch选项，使用轮询模式可能会更稳定
-          clearScreen: false,
-          exclude: ["node_modules/**", "dist/**", "dist-prod/**"],
-        },
+        // watch: {
+        //   // 修改watch选项，使用轮询模式可能会更稳定
+        //   clearScreen: false,
+        //   exclude: ["node_modules/**", "dist/**", "dist-prod/**"],
+        // },
       }),
       ...(isProd && {
         sourcemap: false, // 生产环境关闭

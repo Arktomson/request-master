@@ -6,76 +6,21 @@
 
     <main class="options-content">
       <section class="settings-section">
-        <h2>基本设置</h2>
-
-        <div class="form-group">
-          <label for="enabled">启用扩展：</label>
-          <input
-            type="checkbox"
-            id="enabled"
-            v-model="settings.enabled"
-            @change="saveSettings"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="notificationEnabled">启用通知：</label>
-          <input
-            type="checkbox"
-            id="notificationEnabled"
-            v-model="settings.notifications.enabled"
-            @change="saveSettings"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="theme">主题选择：</label>
-          <select id="theme" v-model="settings.theme" @change="saveSettings">
-            <option value="light">浅色</option>
-            <option value="dark">深色</option>
-            <option value="system">跟随系统</option>
-          </select>
-        </div>
-      </section>
-
-      <section class="settings-section">
         <h2>高级设置</h2>
-
         <div class="form-group">
-          <label for="interval">检查间隔 (秒)：</label>
-          <input
-            type="number"
-            id="interval"
-            v-model.number="settings.advanced.checkInterval"
-            min="1"
-            max="3600"
-            @change="saveSettings"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="rules">URL 匹配规则 (每行一个)：</label>
-          <textarea
-            id="rules"
-            v-model="rulesText"
-            rows="5"
-            placeholder="例如: *.example.com/*"
-            @change="updateRules"
-          ></textarea>
+          <label for="rules">URL 匹配规则 (每行一个)：严格按照type domain格式(中间一个空格)，type可选值为regex、fully、include</label>
+          <textarea class="rules-textarea" id="rules" v-model="rulesText" rows="10"
+            placeholder="例如: regex .*zcy.*"></textarea>
         </div>
       </section>
 
-      <section class="settings-section">
+      <!-- <section class="settings-section">
         <h2>域名匹配规则</h2>
 
         <div class="form-group">
           <label for="checkAllDomains">检测所有域名：</label>
-          <input
-            type="checkbox"
-            id="checkAllDomains"
-            v-model="cacheConfig.domainRules.checkAll"
-            @change="debouncedSaveCache"
-          />
+          <input type="checkbox" id="checkAllDomains" v-model="cacheConfig.domainRules.checkAll"
+            @change="debouncedSaveCache" />
           <span class="form-help">启用后将检测所有域名，忽略下方规则</span>
           <button class="btn btn-danger" @click="resetConfig">重置配置</button>
         </div>
@@ -84,20 +29,11 @@
           <h3>域名匹配规则列表</h3>
           <p class="form-help">请添加需要缓存的域名匹配规则</p>
 
-          <div
-            v-for="(rule, index) in cacheConfig.domainRules.rules"
-            :key="index"
-            class="domain-rule-item"
-          >
+          <div v-for="(rule, index) in cacheConfig.domainRules.rules" :key="index" class="domain-rule-item">
             <div class="domain-rule-content">
               <div class="form-group rule-value">
-                <input
-                  type="text"
-                  v-model="rule.value"
-                  placeholder="输入域名或正则表达式"
-                  class="domain-input"
-                  @change="handleRuleChange"
-                />
+                <input type="text" v-model="rule.value" placeholder="输入域名或正则表达式" class="domain-input"
+                  @change="handleRuleChange" />
               </div>
 
               <div class="form-group rule-type">
@@ -117,10 +53,7 @@
               </div>
             </div>
 
-            <button
-              class="btn btn-danger remove-rule"
-              @click="removeDomainRule(index)"
-            >
+            <button class="btn btn-danger remove-rule" @click="removeDomainRule(index)">
               删除
             </button>
           </div>
@@ -131,7 +64,7 @@
             </button>
           </div>
         </div>
-      </section>
+      </section> -->
 
       <section class="actions-section">
         <button class="btn btn-primary" @click="saveSettings">保存设置</button>
@@ -140,11 +73,7 @@
         </button>
       </section>
 
-      <div
-        v-if="saveStatus"
-        class="save-status"
-        :class="{ success: saveStatus === 'success' }"
-      >
+      <div v-if="saveStatus" class="save-status" :class="{ success: saveStatus === 'success' }">
         {{ saveStatus === "success" ? "设置已保存" : "保存失败，请重试" }}
       </div>
     </main>
@@ -156,6 +85,7 @@
 </template>
 
 <script setup lang="ts">
+import { chromeLocalStorage } from "@/utils";
 import { ref, reactive, onMounted, watch } from "vue";
 
 // 定义域名规则类型接口
@@ -222,14 +152,17 @@ const handleRuleChange = () => {
 // 加载设置
 const loadSettings = async () => {
   try {
-    const result = await chrome.storage.sync.get("settings");
+    const result = await chromeLocalStorage.getAll();
+    const { allowToInjectOrigin } = result;
     const loadedSettings = result.settings || DEFAULT_SETTINGS;
 
     // 更新设置
     Object.assign(settings, loadedSettings);
 
     // 更新规则文本
-    rulesText.value = settings.advanced.rules.join("\n");
+    rulesText.value = allowToInjectOrigin
+      .map((item: any) => `${item.type} ${item.domain}`)
+      .join("\n");
   } catch (error) {
     console.error("加载设置失败:", error);
   }
@@ -298,13 +231,35 @@ const loadCacheConfig = async () => {
 // 保存设置
 const saveSettings = async () => {
   try {
-    await chrome.storage.sync.set({ settings });
+    console.log(rulesText.value);
+    console.log(rulesText.value
+      .split("\n")
+      .map((rule) => {
+        const [type, domain] = rule.split(" ");
+        return {
+          type,
+          domain,
+        };
+      })
+      .filter((rule) => rule.type && rule.domain))
+    await chromeLocalStorage.set({
+      allowToInjectOrigin: rulesText.value
+        .split("\n")
+        .map((rule) => {
+          const [type, domain] = rule.split(" ");
+          return {
+            type,
+            domain,
+          };
+        })
+        .filter((rule) => rule.type && rule.domain),
+    });
     saveStatus.value = "success";
 
     // 3秒后清除状态消息
     setTimeout(() => {
       saveStatus.value = "";
-    }, 3000);
+    }, 2000);
   } catch (error) {
     console.error("保存设置失败:", error);
     saveStatus.value = "error";
@@ -406,33 +361,55 @@ onMounted(async () => {
 });
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+// 定义变量
+$primary-color: #409eff;
+$secondary-color: #909399;
+$danger-color: #f56c6c;
+$success-color: #67c23a;
+$text-color: #333;
+$title-color: #2c3e50;
+$border-color: #eee;
+$input-border: #dcdfe6;
+$input-hover-border: #c0c4cc;
+$box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+$small-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
 .options-container {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  color: #333;
-}
+  color: $text-color;
 
-.options-header {
-  margin-bottom: 24px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #eee;
+  .options-header {
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid $border-color;
+  }
+
+  .options-footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid $border-color;
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+  }
 }
 
 h1 {
   font-size: 24px;
   font-weight: 600;
   margin: 0;
-  color: #2c3e50;
+  color: $title-color;
 }
 
 h2 {
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 16px;
-  color: #2c3e50;
+  color: $title-color;
 }
 
 .settings-section {
@@ -440,30 +417,39 @@ h2 {
   background-color: #fff;
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: $box-shadow;
 }
 
 .form-group {
   margin-bottom: 16px;
+
+  label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
+input {
+  &[type="checkbox"] {
+    margin-right: 8px;
+  }
+
+  &[type="text"],
+  &[type="number"] {
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid $input-border;
+    width: 100%;
+    font-size: 14px;
+  }
 }
 
-input[type="checkbox"] {
-  margin-right: 8px;
-}
-
-input[type="text"],
-input[type="number"],
 select,
 textarea {
   padding: 8px 12px;
   border-radius: 4px;
-  border: 1px solid #dcdfe6;
+  border: 1px solid $input-border;
   width: 100%;
   font-size: 14px;
 }
@@ -474,7 +460,7 @@ textarea {
 }
 
 .form-help {
-  color: #909399;
+  color: $secondary-color;
   font-size: 12px;
   margin-top: 4px;
   margin-bottom: 12px;
@@ -494,59 +480,50 @@ textarea {
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.3s;
-}
 
-.btn-primary {
-  background-color: #409eff;
-  color: white;
-}
+  &-primary {
+    background-color: $primary-color;
+    color: white;
 
-.btn-primary:hover {
-  background-color: #66b1ff;
-}
+    &:hover {
+      background-color: lighten($primary-color, 10%);
+    }
+  }
 
-.btn-secondary {
-  background-color: #909399;
-  color: white;
-}
+  &-secondary {
+    background-color: $secondary-color;
+    color: white;
 
-.btn-secondary:hover {
-  background-color: #a6a9ad;
-}
+    &:hover {
+      background-color: lighten($secondary-color, 10%);
+    }
+  }
 
-.btn-danger {
-  background-color: #f56c6c;
-  color: white;
-}
+  &-danger {
+    background-color: $danger-color;
+    color: white;
 
-.btn-danger:hover {
-  background-color: #f78989;
+    &:hover {
+      background-color: lighten($danger-color, 10%);
+    }
+  }
 }
 
 .save-status {
   margin-top: 16px;
   padding: 8px 16px;
   border-radius: 4px;
-  background-color: #f56c6c;
+  background-color: $danger-color;
   color: white;
-}
 
-.save-status.success {
-  background-color: #67c23a;
-}
-
-.options-footer {
-  margin-top: 40px;
-  padding-top: 16px;
-  border-top: 1px solid #eee;
-  text-align: center;
-  font-size: 12px;
-  color: #888;
+  &.success {
+    background-color: $success-color;
+  }
 }
 
 .domain-rules {
   margin-top: 16px;
-  border: 1px solid #eee;
+  border: 1px solid $border-color;
   border-radius: 4px;
   padding: 16px;
   background-color: #f9f9f9;
@@ -559,7 +536,7 @@ textarea {
   background-color: #fff;
   padding: 12px;
   border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: $small-shadow;
 }
 
 .domain-rule-content {
@@ -567,51 +544,49 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-}
 
-@media (max-width: 768px) {
-  .domain-rule-content {
+  @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
-}
 
-.domain-rule-content .form-group {
-  margin-bottom: 8px;
-}
+  .form-group {
+    margin-bottom: 8px;
+  }
 
-.domain-rule-content .rule-value {
-  grid-column: 1 / -1;
-}
+  .rule-value {
+    grid-column: 1 / -1;
+  }
 
-.domain-rule-content label {
-  display: block;
-  margin-bottom: 4px;
-  font-weight: 500;
-  color: #606266;
-}
+  label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 500;
+    color: #606266;
+  }
 
-.domain-rule-content select {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  background-color: #fff;
-  font-size: 14px;
-  color: #606266;
-  appearance: none;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="6" viewBox="0 0 12 6"><path fill="%23606266" d="M0 0l6 6 6-6z"/></svg>');
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  padding-right: 24px;
-}
+  select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid $input-border;
+    border-radius: 4px;
+    background-color: #fff;
+    font-size: 14px;
+    color: #606266;
+    appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="6" viewBox="0 0 12 6"><path fill="%23606266" d="M0 0l6 6 6-6z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 24px;
 
-.domain-rule-content select:hover {
-  border-color: #c0c4cc;
-}
+    &:hover {
+      border-color: $input-hover-border;
+    }
 
-.domain-rule-content select:focus {
-  outline: none;
-  border-color: #409eff;
+    &:focus {
+      outline: none;
+      border-color: $primary-color;
+    }
+  }
 }
 
 .remove-rule {
@@ -626,19 +601,15 @@ textarea {
 .actions {
   margin-top: 16px;
   text-align: center;
+
+  .add-rule-btn {
+    padding: 8px 24px;
+    font-size: 14px;
+  }
 }
 
-.add-rule-btn {
-  padding: 8px 24px;
-  font-size: 14px;
-}
-
-.btn {
-  padding: 8px 16px;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.3s;
+.rules-textarea {
+  width: 80%;
+  height: 300px;
 }
 </style>

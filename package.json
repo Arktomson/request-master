@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "element-plus": "^2.9.5",
+    "hash-sum": "^2.0.0",
     "normalize.css": "^8.0.1",
     "vue": "^3.5.13",
     "webext-bridge": "^6.0.1"
@@ -24,7 +25,8 @@
     "sass": "^1.88.0",
     "sass-loader": "^16.0.5",
     "terser": "^5.39.0",
-    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
     "vite": "^5.1.0",
     "vue-tsc": "^2.2.4"
   }

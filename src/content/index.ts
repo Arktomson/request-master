@@ -1,4 +1,4 @@
-import { Storage } from "@/utils";
+import { chromeLocalStorage, chromeSessionStorage } from "@/utils";
 // 内容脚本，在匹配的页面上运行
 console.log("HTTP缓存-ContentScript已加载");
 
@@ -7,7 +7,7 @@ console.log("HTTP缓存-ContentScript已加载");
 async function whetherToInject() {
   const curOrigin = window.location.origin;
   const { allowToInjectOrigin, disasterRecoveryProcessing } =
-    await Storage.getAll();
+    await chromeLocalStorage.getAll();
 
   return (
     allowToInjectOrigin.some(
@@ -29,6 +29,7 @@ async function whetherToInject() {
     ) && disasterRecoveryProcessing
   );
 }
+
 async function injectScriptToPage() {
   const isPass = await whetherToInject();
   if (!isPass) {
@@ -41,26 +42,50 @@ async function injectScriptToPage() {
     // 创建并注入脚本
     const script = document.createElement("script");
     script.src = scriptUrl;
-    script.type = "text/javascript";
+    script.type = "module";
 
     (document.head || document.documentElement).appendChild(script);
     // 脚本加载后发送配置
     script.addEventListener("load", async () => {
-      console.log("注入脚本加载完成，发送配置");
-      const result = await Storage.getAll();
-      // 发送扩展状态
-      window.postMessage(
-        {
-          from: "content",
-          to: "ajaxHook",
-          message: result,
-        },
-        "*"
+      const result = await chromeLocalStorage.getAll();
+
+      // 获取当前域名下的缓存数据
+
+      window.dispatchEvent(
+        new CustomEvent("content_to_ajaxHook", {
+          detail: {
+            type: "init",
+            message: result,
+          },
+        })
       );
+      handleEvent();
     });
   } catch (error) {
     console.error("注入脚本加载失败:", error);
   }
+}
+
+async function handleEvent() {
+  let hitCount = 0;
+  chrome.runtime.sendMessage({
+    type: "clear_cache",
+  });
+  window.addEventListener("ajaxHook_to_content", async (event: any) => {
+    const { type, message } = event.detail;
+    console.log("收到事件:", type, message);
+
+    if (type === "cache_hit") {
+      hitCount++;
+
+      // 使用正确的API - chrome.action 而不是 chrome.browserAction
+      chrome.runtime.sendMessage({
+        type: "update_badge",
+        count: hitCount,
+        curCacheData: message,
+      });
+    }
+  });
 }
 
 async function main() {
