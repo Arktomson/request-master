@@ -13,12 +13,14 @@
     "declarativeNetRequestFeedback",
     "proxy",
     "debugger",
-    "scripting"
+    "scripting",
+    "sidePanel"
   ],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background/index.ts",
-    "type": "module"
+    "type": "module",
+    "persistent": true
   },
   "action": {
     "default_popup": "src/popup/index.html",
@@ -30,6 +32,9 @@
     "default_title": "request-cache"
   },
   "options_page": "src/options/index.html",
+  "side_panel": {
+    "default_path": "src/sidebar/index.html"
+  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
@@ -50,5 +55,14 @@
     "16": "src/assets/icon16.png",
     "48": "src/assets/icon48.png",
     "128": "src/assets/icon128.png"
+  },
+  "commands": {
+    "open_sidebar": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S"
+      },
+      "description": "打开 / 切换扩展侧栏"
+    }
   }
 }

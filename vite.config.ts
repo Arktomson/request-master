@@ -3,9 +3,10 @@ import vue from "@vitejs/plugin-vue";
 import { crx } from "@crxjs/vite-plugin";
 import { resolve } from "path";
 import fs from "fs";
+import { viteCommonjs } from "@originjs/vite-plugin-commonjs";
 // 导入manifest并使用类型声明
 import manifestJson from "./manifest.json";
-
+import ElementPlus from "unplugin-element-plus/vite";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode, command }) => {
   const isDev = mode === "development";
@@ -22,12 +23,14 @@ export default defineConfig(({ mode, command }) => {
         manifest: manifestJson,
         browser: "chrome",
       }),
+      ElementPlus(),
+      viteCommonjs(),
     ],
     resolve: {
       alias: {
         "@": resolve(__dirname, "src"),
       },
-      extensions: [".ts", ".vue"],
+      extensions: [".ts", ".vue", ".js"],
     },
     build: {
       // 根据环境设置输出目录
@@ -45,6 +48,7 @@ export default defineConfig(({ mode, command }) => {
           content: resolve(__dirname, "src/content/index.ts"),
           ajaxHook: resolve(__dirname, "src/content/ajaxHook.ts"),
           "cache-viewer": resolve(__dirname, "src/cache-viewer/index.html"),
+          sidebar: resolve(__dirname, "src/sidebar/index.html"),
         },
         output: {
           entryFileNames: (chunkInfo) => {

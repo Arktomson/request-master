@@ -744,6 +744,7 @@ window.addEventListener("content_to_ajaxHook", (event) => {
                         method: request.method,
                         params: request.data,
                         response: json,
+                        cacheKey: cacheKey,
                       },
                     },
                   })
