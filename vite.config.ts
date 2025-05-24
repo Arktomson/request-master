@@ -47,7 +47,6 @@ export default defineConfig(({ mode, command }) => {
           background: resolve(__dirname, "src/background/index.ts"),
           content: resolve(__dirname, "src/content/index.ts"),
           ajaxHook: resolve(__dirname, "src/content/ajaxHook.ts"),
-          "cache-viewer": resolve(__dirname, "src/cache-viewer/index.html"),
           sidebar: resolve(__dirname, "src/sidebar/index.html"),
         },
         output: {
