@@ -32,31 +32,6 @@ async function whetherToInject() {
   );
 }
 
-// 添加保持Service Worker活跃的连接管理
-function setupKeepAliveConnection() {
-  let port: chrome.runtime.Port;
-
-  function connect() {
-    try {
-      port = chrome.runtime.connect({ name: "keepAlive" });
-      console.log("已建立与background的保活连接");
-      
-      port.onDisconnect.addListener(() => {
-        console.log("连接已断开，正在重新连接...");
-        // 连接断开后立即重新连接
-        connect();
-      });
-    } catch (error) {
-      console.error("连接建立失败:", error);
-      // 出错时等待一小段时间后重试
-      setTimeout(connect, 1000);
-    }
-  }
-  
-  // 初始建立连接
-  connect();
-}
-
 async function injectScriptToPage() {
   const isPass = await whetherToInject();
   if (!isPass) {
@@ -146,8 +121,6 @@ chrome.runtime.onMessage.addListener((message: any, sender: any, sendResponse: a
 
 async function main() {
   await injectScriptToPage();
-  // 启动保活连接
-  // setupKeepAliveConnection();
   
   // 初始化Mock拦截器
   const mockEnabled = await chromeLocalStorage.get('mockEnabled');
