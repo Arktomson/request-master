@@ -9,6 +9,7 @@ interface Setting {
     domain: string;
   }[];
   [key: string]: any; // 添加索引签名
+  sidebarIfCacheState: boolean;
 }
 async function initConfig() {
   // 配置为空，进行初始化
@@ -44,6 +45,8 @@ async function initConfig() {
         domain: ".*zcy.*",
       },
     ],
+
+    sidebarIfCacheState: false,
     // 其他默认配置项...
   };
   Object.keys(defaultSettings).forEach(async (key) => {
@@ -57,8 +60,9 @@ async function initConfig() {
 async function initEvent() {
   chrome.runtime.onMessage.addListener(async (message, sender) => {
     if (message.type === "update_badge") {
+      const { count, oneRequestData } = message.data;
       chrome.action.setBadgeText({
-        text: message.count.toString(),
+        text: count.toString(),
         tabId: sender.tab?.id,
       });
       chrome.action.setBadgeBackgroundColor({
@@ -67,11 +71,32 @@ async function initEvent() {
       });
       const curCacheData =
         (await chromeSessionStorage.get("curCacheData")) || [];
-      console.log("curCacheData", curCacheData);
-      curCacheData.push(message.curCacheData);
+      curCacheData.push(oneRequestData);
       chromeSessionStorage.set({ curCacheData });
     } else if (message.type === "clear_cache") {
-      chromeSessionStorage.set({ curCacheData: [] });
+      chromeSessionStorage.set({ curCacheData: [] , curMonitorData: []});
+    } else if (message.type === "sidebar_state_changed") {
+      console.log('侧边栏状态更改:', message.visible);
+    } else if (message.type === "update_current_request") {
+      const curMonitorData = await chromeSessionStorage.get('curMonitorData') || [];
+      curMonitorData.push(message.data);
+      chromeSessionStorage.set({ curMonitorData });
+    } 
+  });
+
+  chrome.commands.onCommand.addListener(async (command) => {
+    if (command === "open_sidebar") {
+      console.log('open_sidebar')
+      // 切换iframe侧边栏
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]?.id) {
+          // 发送消息给内容脚本来切换侧边栏
+          chrome.tabs.sendMessage(tabs[0].id, { type: 'toggle_sidebar' })
+            .catch(err => {
+              console.error('发送消息失败，可能内容脚本未加载:', err);
+            });
+        }
+      });
     }
   });
 }
@@ -82,12 +107,6 @@ async function main() {
 }
 
 main()
-chrome.commands.onCommand.addListener((command) => {
-  if (command === "open_sidebar") {
-    // 打开或切换侧边栏
-    chrome.sidePanel.open();
-  }
-});
 
 // // 添加保持Service Worker活跃的连接监听器
 // chrome.runtime.onConnect.addListener((port) => {

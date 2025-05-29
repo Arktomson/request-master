@@ -11,9 +11,7 @@ export const ajaxInterface = function () {
   function modifyJsonResponse(req, res, modifier) {
     try {
       if (req.type === "fetch") {
-        console.log(res.json, "res.json");
         const result = modifier(res.json);
-        console.log(result, "result");
         res.json = result;
         return res;
       } else {
@@ -477,10 +475,15 @@ export const ajaxInterface = function () {
     if (!url) return winAh.realFetch.call(win, url, options);
     return new Promise(async (resolve, reject) => {
       const init = {};
-      if (getType(url) === "[object Request]") {
-        for (const prop of fetchInitProps) init[prop] = url[prop];
-        if (url.body) init.body = await url.arrayBuffer();
-        url = url.url;
+      // if (getType(url) === "[object Request]") {
+      //   for (const prop of fetchInitProps) init[prop] = url[prop];
+      //   if (url.body) init.body = await url.arrayBuffer();
+      //   url = url.url;
+      // }
+      if (url instanceof Request) {
+        const reqClone = url.clone();
+        Object.assign(init, reqClone); // 利用浏览器的 Request→init 结构化拷贝
+        url = reqClone.url;
       }
       url = url.toString();
       Object.assign(init, options);
@@ -528,7 +531,6 @@ export const ajaxInterface = function () {
       init.body = request.data;
       winAh.realFetch.call(win, request.url, init).then(
         async (res) => {
-          console.log("res", res);
           if (typeof request.response === "function") {
             // 对于错误状态码且是JSON格式的响应，进行特殊处理
             if (serverTempErrorCodes.includes(res.status)) {
@@ -620,41 +622,8 @@ export const ajaxInterface = function () {
             });
           }
           resolve(res);
-        },
-        async (networkErr) => {
-          console.log("networkErr", networkErr);
-          // 1️⃣  构造可写快照 —— 这里 status 设成 0（网络错误常见做法）或 503 自行决定
-          const snapshot = {
-            finalUrl: request.url,
-            status: 0,
-            statusText: networkErr.message || "Network Error",
-            responseHeaders: {},
-            json: { error: snapshot.statusText },
-            text: JSON.stringify({ error: snapshot.statusText }),
-          };
-
-          // 2️⃣  如果用户定义了 response 钩子，让它有机会"吃掉"异常
-          let modified = snapshot;
-          if (typeof request.response === "function") {
-            try {
-              modified = (await request.response(snapshot)) || snapshot;
-            } catch (e) {
-              console.error("response 回调内部又抛错:", e);
-            }
-          }
-
-          // 3️⃣  把修改后的结果重新包成真正的 Response，让上游走正常 then
-          const mock = new Response(
-            modified.text ?? JSON.stringify(modified.json),
-            {
-              status: modified.status ?? 200,
-              statusText: modified.statusText ?? "OK",
-              headers: new Headers(modified.responseHeaders),
-            }
-          );
-          resolve(mock); // ✅ 不再 reject，前端代码的 catch 不会触发
         }
-      );
+      ).catch(reject);;
     });
   }
   function fakeFetchClone() {

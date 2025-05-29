@@ -61,16 +61,33 @@ window.addEventListener("content_to_ajaxHook", (event) => {
     ajaxHooker.hook((request: AjaxHookRequest) => {
       console.log("request ajaxHook", request,request.type);
       request.response = (resp: AjaxHookResponse) => {
-        console.log("resp ajaxHook", resp);
         if (!filterSituation(resp)) {
           return resp;
         }
+        console.log("resp ajaxHook", resp);
 
         return ajaxHooker.modifyJsonResponse(
           request,
           resp as AjaxHookResponse,
           (json: Record<string, any>) => {
             const { status, cacheKey } = checkStatus(request, resp, cacheData);
+            
+            window.dispatchEvent(
+              new CustomEvent("ajaxHook_to_content", {
+                detail: {
+                  type: "currentRequest",
+                  message: {
+                    url: resp.finalUrl,
+                    method: request.method,
+                    params: request.data,
+                    response: json,
+                    cacheKey: cacheKey,
+                    time: new Date().getTime(),
+                  },
+                },
+              })
+            );
+
             switch (status) {
               case ProcessStatus.RECOVERY:
                 console.log("命中缓存", cacheKey,request,resp);

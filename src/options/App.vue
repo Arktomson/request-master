@@ -11,6 +11,11 @@
           <label for="rules">URL 匹配规则 (每行一个)：严格按照type domain格式(中间一个空格)，type可选值为regex、fully、include</label>
           <textarea class="rules-textarea" id="rules" v-model="rulesText" rows="10"
             placeholder="例如: regex .*zcy.*"></textarea>
+          <div>
+            <label style="display: inline-block;" for="sidebarIfCacheState">缓存时显示侧边栏：</label>
+            <input type="checkbox" id="sidebarIfCacheState" v-model="sidebarIfCacheState"
+              @change="debouncedSaveCache" />
+          </div>
         </div>
       </section>
 
@@ -133,6 +138,7 @@ const rulesText = ref("");
 const saveStatus = ref("");
 const version = ref("");
 const cacheConfig = reactive({ ...DEFAULT_CACHE_CONFIG });
+const sidebarIfCacheState = ref(false);
 
 // 创建防抖保存函数
 const debouncedSaveCache = debounce(async () => {
@@ -231,17 +237,6 @@ const loadCacheConfig = async () => {
 // 保存设置
 const saveSettings = async () => {
   try {
-    console.log(rulesText.value);
-    console.log(rulesText.value
-      .split("\n")
-      .map((rule) => {
-        const [type, domain] = rule.split(" ");
-        return {
-          type,
-          domain,
-        };
-      })
-      .filter((rule) => rule.type && rule.domain))
     await chromeLocalStorage.set({
       allowToInjectOrigin: rulesText.value
         .split("\n")
@@ -253,6 +248,7 @@ const saveSettings = async () => {
           };
         })
         .filter((rule) => rule.type && rule.domain),
+      sidebarIfCacheState: sidebarIfCacheState.value,
     });
     saveStatus.value = "success";
 

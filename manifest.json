@@ -42,11 +42,23 @@
       "run_at": "document_start",
       "all_frames": true,
       "type": "module"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/iframeSidebar.ts"],
+      "run_at": "document_end",
+      "all_frames": false,
+      "type": "module"
     }
   ],
   "web_accessible_resources": [
     {
       "resources": ["assets/*", "*.js", "_*.js", "vendor-*.js"],
+      "type": "module",
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["src/sidebar/*", "src/sidebar/index.html", "sidebar.js", "sidebar/*"],
       "type": "module",
       "matches": ["<all_urls>"]
     }

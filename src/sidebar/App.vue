@@ -1,145 +1,89 @@
 <template>
   <div class="sidebar-container">
-    <div class="sidebar-header">
-      <h1 class="sidebar-title">Mock工具</h1>
-      <div class="sidebar-status">
-        <span class="status-indicator" :class="{ 'active': isActive }"></span>
-        <span>{{ isActive ? '已激活' : '未激活' }}</span>
-        <el-switch v-model="isActive" @change="toggleActive" />
-      </div>
-    </div>
+    <!-- 顶部标题区 -->
+    <Header v-model:isActive="isActive" />
 
-    <div @click="count++">{{ count }}</div>
-    <div class="sidebar-tabs">
-      <el-tabs v-model="activeTab" type="card">
-        <el-tab-pane label="Mock列表" name="mockList">
-          <div class="mock-list">
-            <div v-if="mockList.length === 0" class="empty-list">
-              <el-empty description="暂无Mock数据" />
-              <el-button type="primary" @click="showAddMockDialog">添加第一个Mock</el-button>
-            </div>
-            <template v-else>
-              <div class="mock-list-header">
-                <el-input
-                  v-model="searchQuery"
-                  placeholder="搜索Mock"
-                  prefix-icon="el-icon-search"
-                  clearable
-                >
-                </el-input>
-                <el-button type="primary" size="small" @click="showAddMockDialog">
-                  添加Mock
-                </el-button>
-              </div>
-              <div class="mock-items">
-                <div 
-                  v-for="(item, index) in filteredMockList" 
-                  :key="index" 
-                  class="mock-item"
-                >
-                  <div class="mock-item-header">
-                    <div class="mock-item-url">{{ item.url }}</div>
-                    <div class="mock-item-method" :class="getMethodClass(item.method)">
-                      {{ item.method }}
-                    </div>
-                  </div>
-                  <div class="mock-item-footer">
-                    <el-switch 
-                      v-model="item.enabled" 
-                      @change="updateMockStatus(index, item.enabled)"
-                    />
-                    <div class="mock-item-actions">
-                      <el-button 
-                        type="text" 
-                        icon="el-icon-edit"
-                        @click="editMock(index)"
-                      >
-                        编辑
-                      </el-button>
-                      <el-button 
-                        type="text" 
-                        icon="el-icon-delete"
-                        @click="deleteMock(index)"
-                      >
-                        删除
-                      </el-button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </template>
-          </div>
-        </el-tab-pane>
-        <el-tab-pane label="设置" name="settings">
-          <div class="settings-panel">
-            <el-form label-position="top">
-              <el-form-item label="默认延迟时间(ms)">
-                <el-input-number v-model="settings.defaultDelay" :min="0" :max="10000" />
-              </el-form-item>
-              <el-form-item label="捕获请求方式">
-                <el-select v-model="settings.captureMethod" style="width: 100%">
-                  <el-option label="所有请求" value="all" />
-                  <el-option label="仅Ajax请求" value="ajax" />
-                  <el-option label="仅Fetch请求" value="fetch" />
-                </el-select>
-              </el-form-item>
-            </el-form>
-            <div class="settings-actions">
-              <el-button type="primary" @click="saveSettings">保存设置</el-button>
-            </div>
-          </div>
-        </el-tab-pane>
-      </el-tabs>
+    <!-- 主体布局 -->
+    <div class="main-layout">
+      <!-- 左侧标签栏 -->
+      <SidebarMenu v-model:activeTab="activeTab" />
+
+      <!-- 中间主要内容区 -->
+      <div class="content-area">
+        <!-- 请求监测区域 -->
+        <MonitorSection 
+          ref="monitorSectionRef"
+          :requests="requests"
+          :selectedRequestIndex="selectedRequestIndex"
+          @select-request="selectRequest"
+          @clear-requests="handleClearRequests"
+          @add-mock="showAddMockDialog"
+        />
+
+        <!-- 可拖拽分隔线(垂直方向) -->
+        <ResizeHandle 
+          direction="horizontal" 
+          @resize="handleHorizontalResize"
+        />
+
+        <!-- Mock列表区域 -->
+        <MockSection
+          ref="mockSectionRef"
+          :mockList="mockList"
+          :selectedMockIndex="selectedMockIndex"
+          @select-mock="selectMock"
+          @update-mock-status="updateMockStatus"
+          @edit-mock="editMock"
+          @delete-mock="deleteMock"
+          @add-mock="showAddMockDialog"
+        />
+      </div>
+
+      <!-- 可拖拽分隔线 -->
+      <ResizeHandle @resize="handleVerticalResize" />
+
+      <!-- 右侧JSON查看器 -->
+      <JsonViewer
+        ref="jsonViewerRef"
+        :content="jsonContent"
+        :isSelected="!!selectedRequest"
+        :isMockSelected="!!selectedMock"
+        @update:content="(val) => jsonContent = val"
+        @save="saveJsonContent"
+      />
     </div>
 
     <!-- Mock弹窗 -->
-    <el-dialog
+    <MockDialog
       v-model="mockDialogVisible"
-      :title="isEditMode ? '编辑Mock' : '添加Mock'"
-      width="90%"
-    >
-      <el-form label-position="top" :model="currentMock">
-        <el-form-item label="URL模式">
-          <el-input v-model="currentMock.url" placeholder="例如: /api/users/:id" />
-        </el-form-item>
-        <el-form-item label="请求方法">
-          <el-select v-model="currentMock.method" style="width: 100%">
-            <el-option label="GET" value="GET" />
-            <el-option label="POST" value="POST" />
-            <el-option label="PUT" value="PUT" />
-            <el-option label="DELETE" value="DELETE" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="延迟(ms)">
-          <el-input-number v-model="currentMock.delay" :min="0" />
-        </el-form-item>
-        <el-form-item label="响应数据">
-          <el-input
-            v-model="currentMock.response"
-            type="textarea"
-            :rows="8"
-            placeholder="输入JSON响应数据"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="mockDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveMock">确定</el-button>
-      </template>
-    </el-dialog>
+      :isEditMode="isEditMode"
+      :currentMock="currentMock"
+      @save="saveMock"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { chromeLocalStorage } from '@/utils';
+import { chromeLocalStorage, chromeSessionStorage } from '@/utils';
+
+// 导入组件
+import Header from './components/Header.vue';
+import SidebarMenu from './components/SidebarMenu.vue';
+import MonitorSection from './components/MonitorSection.vue';
+import MockSection from './components/MockSection.vue';
+import JsonViewer from './components/JsonViewer.vue';
+import MockDialog from './components/MockDialog.vue';
+import ResizeHandle from './components/ResizeHandle.vue';
 
 // 状态
 const isActive = ref(false);
-const activeTab = ref('mockList');
+const activeTab = ref('1');
 const mockList = ref<any[]>([]);
-const searchQuery = ref('');
+const requests = ref<any[]>([]);
+const selectedRequestIndex = ref(-1);
+const selectedMockIndex = ref(-1);
 const mockDialogVisible = ref(false);
 const isEditMode = ref(false);
 const editingIndex = ref(-1);
@@ -154,43 +98,84 @@ const settings = ref({
   defaultDelay: 200,
   captureMethod: 'all'
 });
-const count = ref(0);
+const jsonContent = ref('');
+
+// DOM引用
+const monitorSectionRef = ref();
+const mockSectionRef = ref();
+const jsonViewerRef = ref();
 
 // 计算属性
-const filteredMockList = computed(() => {
-  if (!searchQuery.value) return mockList.value;
-  const query = searchQuery.value.toLowerCase();
-  return mockList.value.filter(
-    item => item.url.toLowerCase().includes(query) || 
-            item.method.toLowerCase().includes(query)
-  );
+const selectedRequest = computed(() => {
+  if (selectedRequestIndex.value >= 0 && requests.value.length > selectedRequestIndex.value) {
+    return requests.value[selectedRequestIndex.value];
+  }
+  return null;
+});
+
+const selectedMock = computed(() => {
+  if (selectedMockIndex.value >= 0 && mockList.value.length > selectedMockIndex.value) {
+    return mockList.value[selectedMockIndex.value];
+  }
+  return null;
 });
 
 // 方法
-const toggleActive = (value: boolean) => {
-  isActive.value = value;
-  chromeLocalStorage.set({ mockEnabled: value });
-  ElMessage.success(value ? 'Mock功能已启用' : 'Mock功能已禁用');
+const selectRequest = (index: number) => {
+  selectedRequestIndex.value = index;
+  selectedMockIndex.value = -1;
+  const request = requests.value[index];
+  
+  try {
+    // 显示响应数据
+    if (request.response) {
+      const responseData = typeof request.response === 'string' 
+        ? JSON.parse(request.response) 
+        : request.response;
+      jsonContent.value = JSON.stringify(responseData, null, 2);
+    } else {
+      jsonContent.value = '';
+    }
+  } catch (error) {
+    jsonContent.value = request.response || '';
+  }
 };
 
-const getMethodClass = (method: string) => {
-  const methodLower = method.toLowerCase();
-  if (methodLower === 'get') return 'method-get';
-  if (methodLower === 'post') return 'method-post';
-  if (methodLower === 'put') return 'method-put';
-  if (methodLower === 'delete') return 'method-delete';
-  return 'method-other';
+const selectMock = (index: number) => {
+  selectedMockIndex.value = index;
+  selectedRequestIndex.value = -1;
+  const mock = mockList.value[index];
+  
+  try {
+    jsonContent.value = JSON.stringify(JSON.parse(mock.response), null, 2);
+  } catch (error) {
+    jsonContent.value = mock.response || '';
+  }
 };
 
 const showAddMockDialog = () => {
   isEditMode.value = false;
-  currentMock.value = {
-    url: '',
-    method: 'GET',
-    enabled: true,
-    delay: settings.value.defaultDelay,
-    response: '{}'
-  };
+  
+  // 如果有选中的请求，使用它的信息预填
+  if (selectedRequest.value) {
+    const req = selectedRequest.value;
+    currentMock.value = {
+      url: req.url,
+      method: req.method,
+      enabled: true,
+      delay: settings.value.defaultDelay,
+      response: jsonContent.value || '{}'
+    };
+  } else {
+    currentMock.value = {
+      url: '',
+      method: 'GET',
+      enabled: true,
+      delay: settings.value.defaultDelay,
+      response: '{}'
+    };
+  }
+  
   mockDialogVisible.value = true;
 };
 
@@ -198,48 +183,46 @@ const editMock = (index: number) => {
   isEditMode.value = true;
   editingIndex.value = index;
   currentMock.value = { ...mockList.value[index] };
+  
+  // 格式化JSON
+  try {
+    const formattedResponse = JSON.stringify(JSON.parse(currentMock.value.response), null, 2);
+    currentMock.value.response = formattedResponse;
+  } catch (e) {
+    // 保持原样
+  }
+  
   mockDialogVisible.value = true;
 };
 
-const saveMock = () => {
-  // 检查URL是否为空
-  if (!currentMock.value.url.trim()) {
-    ElMessage.error('URL不能为空');
-    return;
-  }
-
-  // 检查响应JSON格式
-  try {
-    JSON.parse(currentMock.value.response);
-  } catch (e) {
-    ElMessage.error('响应数据必须是有效的JSON格式');
-    return;
-  }
-
+const saveMock = (mockData: any) => {
   if (isEditMode.value) {
     // 编辑模式
-    mockList.value[editingIndex.value] = { ...currentMock.value };
+    mockList.value[editingIndex.value] = { ...mockData };
+    // 如果当前选中的是被编辑的mock，更新显示
+    if (selectedMockIndex.value === editingIndex.value) {
+      selectMock(editingIndex.value);
+    }
   } else {
     // 添加模式
-    mockList.value.push({ ...currentMock.value });
+    mockList.value.push({ ...mockData });
   }
 
   // 保存到存储
   saveMockListToStorage();
-  mockDialogVisible.value = false;
   ElMessage.success(isEditMode.value ? 'Mock已更新' : 'Mock已添加');
 };
 
 const deleteMock = (index: number) => {
-  ElMessageBox.confirm('确定要删除这个Mock吗?', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    mockList.value.splice(index, 1);
-    saveMockListToStorage();
-    ElMessage.success('删除成功');
-  }).catch(() => {});
+  // 如果删除的是当前选中的
+  if (selectedMockIndex.value === index) {
+    selectedMockIndex.value = -1;
+    jsonContent.value = '';
+  }
+  
+  mockList.value.splice(index, 1);
+  saveMockListToStorage();
+  ElMessage.success('删除成功');
 };
 
 const updateMockStatus = (index: number, enabled: boolean) => {
@@ -247,13 +230,196 @@ const updateMockStatus = (index: number, enabled: boolean) => {
   saveMockListToStorage();
 };
 
-const saveMockListToStorage = () => {
-  chromeLocalStorage.set({ mockList: mockList.value });
+const saveMockListToStorage = async () => {
+  await chromeLocalStorage.set({ mockList: mockList.value });
+  // 配置更新后通知content script
+  notifyConfigUpdate();
 };
 
 const saveSettings = () => {
   chromeLocalStorage.set({ mockSettings: settings.value });
   ElMessage.success('设置已保存');
+};
+
+const handleClearRequests = () => {
+  requests.value = [];
+  selectedRequestIndex.value = -1;
+  jsonContent.value = '';
+  chromeSessionStorage.set({ curCacheData: [] });
+  ElMessage.success('记录已清空');
+};
+
+const saveJsonContent = (content: string) => {
+  // 如果是编辑mock的响应
+  if (selectedMock.value) {
+    mockList.value[selectedMockIndex.value].response = content;
+    saveMockListToStorage();
+  }
+};
+
+// 拖拽调整大小处理
+const handleVerticalResize = (size: number) => {
+  if (jsonViewerRef.value?.jsonViewerAreaRef) {
+    const container = document.querySelector('.main-layout') as HTMLElement;
+    if (!container) return;
+    
+    const containerWidth = container.getBoundingClientRect().width;
+    const contentArea = document.querySelector('.content-area') as HTMLElement;
+    if (!contentArea) return;
+    
+    // 确保调整后的宽度不超出合理范围
+    const minWidth = 300;
+    const maxWidth = containerWidth * 0.75; // 最大不超过容器的75%
+    const newSize = Math.max(minWidth, Math.min(maxWidth, size));
+    
+    // 计算内容区和JSON查看器的相对宽度
+    const contentAreaWidth = containerWidth - newSize - 87; // 减去菜单宽度和分隔线宽度
+    
+    // 应用新宽度
+    contentArea.style.width = `${contentAreaWidth}px`;
+    contentArea.style.flex = '0 0 auto';
+    jsonViewerRef.value.jsonViewerAreaRef.style.width = `${newSize}px`;
+    jsonViewerRef.value.jsonViewerAreaRef.style.flex = '0 0 auto';
+  }
+};
+
+const handleHorizontalResize = (size: number) => {
+  const monitorSection = monitorSectionRef.value?.monitorSectionRef;
+  const mockSection = mockSectionRef.value?.mockSectionRef;
+  const container = monitorSection?.parentElement;
+  
+  if (monitorSection && mockSection && container) {
+    const containerHeight = container.getBoundingClientRect().height;
+    
+    // 确保调整后的高度不超出合理范围
+    const minHeight = 100;
+    const maxHeight = containerHeight - 120; // 保留足够空间给Mock区域
+    const newSize = Math.max(minHeight, Math.min(maxHeight, size));
+    
+    const heightPercent = (newSize / containerHeight) * 100;
+    
+    monitorSection.style.height = `${heightPercent}%`;
+    monitorSection.style.minHeight = `${minHeight}px`;
+    mockSection.style.height = `calc(100% - ${heightPercent}% - 3px)`;  // 减去分隔线的高度
+    mockSection.style.minHeight = `100px`;
+  }
+};
+
+// 初始化布局大小
+const initLayout = () => {
+  // 初始化垂直分割比例
+  const container = document.querySelector('.main-layout') as HTMLElement;
+  if (container) {
+    const containerWidth = container.getBoundingClientRect().width;
+    const jsonViewerWidth = containerWidth * 0.4; // JSON查看器占40%
+    handleVerticalResize(jsonViewerWidth);
+  }
+  
+  // 初始化水平分割比例
+  const contentArea = document.querySelector('.content-area') as HTMLElement;
+  if (contentArea) {
+    const contentHeight = contentArea.getBoundingClientRect().height;
+    const monitorHeight = contentHeight * 0.6; // 监控区域占60%
+    handleHorizontalResize(monitorHeight);
+  }
+};
+
+// 设置消息监听
+const setupMessageListener = () => {
+  chromeSessionStorage.onChange(({curMonitorData}) => {
+    if(curMonitorData){
+      requests.value = curMonitorData.newValue;
+      console.log('init receive changes', curMonitorData.newValue);
+    }
+  },'curMonitorData');
+  // chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  //   console.log('侧边栏收到消息:', message);
+    
+  //   // 处理来自content script的消息
+  //   if (message.type === 'update_current_request') {
+  //     const { data } = message;
+  //     // handleNewRequest(data);
+  //     console.log('update_current_request', data);
+  //     // switch (action) {
+  //     //   case 'update_current_request':
+  //     //     // 处理新请求
+  //     //     handleNewRequest(data);
+  //     //     break;
+          
+  //     //   case 'update_mock_status':
+  //     //     // 更新Mock状态
+  //     //     isActive.value = message.data.enabled;
+  //     //     break;
+          
+  //     //   // 其他消息类型...
+  //     //   default:
+  //     //     console.log('未知的消息类型:', action);
+  //     // }
+  //   }
+    
+  //   // 返回true表示异步处理消息
+  //   return true;
+  // });
+};
+
+// 处理新请求数据
+const handleNewRequest = (requestData: any) => {
+  // 将新请求添加到列表中
+  requests.value = [...requests.value, requestData];
+  // 如果需要，可以自动选择新请求
+  // selectRequest(requests.value.length - 1);
+};
+
+// 向content script发送消息的函数
+const sendMessageToContent = (data: any) => {
+  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+    const activeTabId = tabs[0]?.id;
+    if (activeTabId) {
+      chrome.tabs.sendMessage(activeTabId, {
+        type: 'from_sidebar',
+        data: data
+      });
+    }
+  });
+};
+
+// 监听存储更新通知
+const setupStorageListener = () => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "storage_updated") {
+      // 从存储中获取更新的数据
+      loadUpdatedData(message.key);
+    }
+    return true;
+  });
+};
+
+// 加载更新的数据
+const loadUpdatedData = async (key: string) => {
+  if (key === 'curCacheData') {
+    // 加载新的请求记录
+    const requestData = await chromeSessionStorage.get('curCacheData');
+    if (requestData && Array.isArray(requestData)) {
+      requests.value = requestData;
+    }
+  } else if (key === 'mockList') {
+    // 加载新的Mock列表
+    const storedMockList = await chromeLocalStorage.get('mockList');
+    if (storedMockList) {
+      mockList.value = storedMockList;
+    }
+  }
+  // ... 其他类型的数据更新处理
+};
+
+// 通知content script配置已更新
+const notifyConfigUpdate = () => {
+  chrome.runtime.sendMessage({
+    type: "from_sidebar",
+    data: {
+      action: "mock_updated"
+    }
+  });
 };
 
 // 生命周期钩子
@@ -273,152 +439,71 @@ onMounted(async () => {
   if (storedSettings) {
     settings.value = storedSettings;
   }
+  
+  // 加载请求记录
+  const requestData = await chromeSessionStorage.get('curCacheData');
+  if (requestData && Array.isArray(requestData)) {
+    requests.value = requestData;
+  }
+  
+  // 等待DOM渲染完成后初始化布局
+  setTimeout(initLayout, 100);
+  
+  // 监听窗口大小变化，重新调整布局
+  window.addEventListener('resize', initLayout);
+  
+  // 设置消息监听器
+  setupMessageListener();
+  
+  // 设置存储监听器
+  setupStorageListener();
+
+  const curMonitorData = await chromeSessionStorage.get('curMonitorData');
+  requests.value = curMonitorData;
+});
+
+onUnmounted(() => {
+  // 移除事件监听器
+  window.removeEventListener('resize', initLayout);
 });
 </script>
 
 <style scoped lang="scss">
 .sidebar-container {
-  padding: 12px;
-}
-
-.sidebar-header {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #ebeef5;
-  padding-bottom: 12px;
-}
-
-.sidebar-title {
-  font-size: 18px;
-  margin: 0 0 8px 0;
-  color: #303133;
-}
-
-.sidebar-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #606266;
-}
-
-.status-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #909399;
   
-  &.active {
-    background-color: #67c23a;
+  .main-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0; // 修复Flex布局中的溢出问题
+    
+    .content-area {
+      flex: 1;
+      min-width: 300px;
+      max-width: 70%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-right: 1px solid #ebeef5;
+    }
   }
 }
 
-.mock-list {
-  height: calc(100vh - 150px);
-  overflow-y: auto;
-}
-
-.empty-list {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 32px 0;
-  gap: 16px;
-}
-
-.mock-list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.mock-items {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mock-item {
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
-  padding: 8px 12px;
-  background-color: #fff;
-  transition: box-shadow 0.3s;
-  
-  &:hover {
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+// 响应式调整
+@media (max-width: 1200px) {
+  .sidebar-container .main-layout .content-area {
+    min-width: 250px;
+    max-width: 60%;
   }
 }
 
-.mock-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.mock-item-url {
-  font-size: 14px;
-  font-weight: 500;
-  color: #303133;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px;
-}
-
-.mock-item-method {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 2px 6px;
-  border-radius: 3px;
-  
-  &.method-get {
-    background-color: #409eff;
-    color: white;
+@media (max-width: 768px) {
+  .sidebar-container .main-layout .content-area {
+    min-width: 200px;
+    max-width: 50%;
   }
-  
-  &.method-post {
-    background-color: #67c23a;
-    color: white;
-  }
-  
-  &.method-put {
-    background-color: #e6a23c;
-    color: white;
-  }
-  
-  &.method-delete {
-    background-color: #f56c6c;
-    color: white;
-  }
-  
-  &.method-other {
-    background-color: #909399;
-    color: white;
-  }
-}
-
-.mock-item-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.mock-item-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.settings-panel {
-  padding: 16px 0;
-}
-
-.settings-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
 }
 </style> 

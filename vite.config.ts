@@ -47,6 +47,7 @@ export default defineConfig(({ mode, command }) => {
           background: resolve(__dirname, "src/background/index.ts"),
           content: resolve(__dirname, "src/content/index.ts"),
           ajaxHook: resolve(__dirname, "src/content/ajaxHook.ts"),
+          iframeSidebar: resolve(__dirname, "src/content/iframeSidebar.ts"),
           sidebar: resolve(__dirname, "src/sidebar/index.html"),
         },
         output: {
