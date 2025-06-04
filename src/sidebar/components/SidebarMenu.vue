@@ -1,11 +1,11 @@
 <template>
   <div class="tabs-sidebar">
     <el-menu :default-active="activeTab" class="tabs-menu" @select="handleSelect">
-      <el-menu-item index="1" class="menu-item-vertical">
+      <el-menu-item index="monitor" class="menu-item-vertical">
         <el-icon class="menu-icon"><Monitor /></el-icon>
         <span class="menu-text">请求监测</span>
       </el-menu-item>
-      <el-menu-item index="2" class="menu-item-vertical">
+      <el-menu-item index="setting" class="menu-item-vertical">
         <el-icon class="menu-icon"><Setting /></el-icon>
         <span class="menu-text">设置</span>
       </el-menu-item>

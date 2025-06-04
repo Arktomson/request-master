@@ -1,27 +1,27 @@
 <template>
   <div class="popup-container">
     <header class="popup-header">
-      <img src="../assets/icon48.png" alt="Logo" class="logo" />
-      <h1>HTTP缓存工具</h1>
+      <div class="header-left">
+        <img src="../assets/icon48.png" alt="Logo" class="logo" />
+        <h1>HTTP缓存工具</h1>
+      </div>
+      <div class="header-right">
+        <div class="switch-item">
+          <span>监控开关</span>
+          <el-switch v-model="isMonitorEnabled" @change="(enabled: boolean) => {
+            chromeLocalStorage.set({ monitorEnabled: enabled })
+          }" />
+        </div>
+        <div class="switch-item">
+          <span>容灾开关</span>
+          <el-switch v-model="isActive" @change="(enabled: boolean) => {
+            chromeLocalStorage.set({ disasterRecoveryProcessing: enabled })
+          }" />
+        </div>
+      </div>
     </header>
 
     <main class="popup-content">
-      <div class="status-section">
-        <p>
-          状态:
-          <span class="status-badge" :class="{ active: isActive }">
-            {{ isActive ? "激活" : "关闭" }}</span
-          >
-        </p>
-        <button
-          @click="toggleActive"
-          class="toggle-btn"
-          :class="{ active: isActive }"
-        >
-          {{ isActive ? "停用" : "启用" }}
-        </button>
-      </div>
-
       <!-- 添加缓存数据展示部分 -->
       <div
         class="cache-data-section"
@@ -41,11 +41,11 @@
               >
                 {{ item?.method || "GET" }}
               </span>
-              <ElTooltip :content="item?.url || '未知URL'" placement="top">
+              <el-tooltip :content="item?.url || '未知URL'" placement="top">
                 <span class="url-text" :title="item?.url || '未知URL'">
                   {{ item?.url || "未知URL" }}
                 </span>
-              </ElTooltip>
+              </el-tooltip>
 
               <span class="expand-icon">{{
                 expandedItems.includes(index) ? "▼" : "▶"
@@ -112,26 +112,18 @@
 </template>
 
 <script setup lang="ts">
-import { chromeLocalStorage, chromeSessionStorage } from "@/utils/index";
-import { ref, onMounted, nextTick } from "vue";
-import { ElTooltip, ElMessage } from "element-plus";
-import { sendMessage } from "webext-bridge/popup";
+import { chromeLocalStorage, chromeSessionStorage, messageToContent } from "@/utils/index";
+import { ref, onMounted, nextTick, toRaw } from "vue";
+import { ElMessage } from "element-plus";
 
 
 const isActive = ref(false);
+const isMonitorEnabled = ref(false);
 const curCacheData = ref<any[]>([]);
 const expandedItems = ref<number[]>([]);
 const editingIndex = ref<number | null>(null);
 const editingContent = ref<string>("");
 const jsonError = ref<string | null>(null);
-
-// 切换激活状态
-const toggleActive = () => {
-  isActive.value = !isActive.value;
-  nextTick(() => {
-    chromeLocalStorage.set({ disasterRecoveryProcessing: isActive.value });
-  });
-};
 
 // 切换展开状态
 const toggleItem = (index: number) => {
@@ -255,24 +247,16 @@ const saveEdit = async (index: number) => {
       const val = JSON.parse(editingContent.value)
       console.log("val", val)
       // 更新存储中的数据
-      await chromeSessionStorage.set({ curCacheData: updatedCacheData });
-      console.log("发起更新请求缓存数据事件，localstorage")
-      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (tabs[0]?.id) {
-          console.log('开始发送事件',tabs[0].id)
-          chrome.tabs.sendMessage(tabs[0].id, {
-            type: "update_request_cache_data",
-            data: {
-              cacheKey: updatedCacheData[index].cacheKey,
-              cacheResponse: val,
-              cacheReqParams: updatedCacheData[index].params,
-            }
-          },(response) => {
-            console.log("收到事件", response)
-          });
-        } else {
-          ElMessage.error("无法获取当前标签页");
+      await chromeSessionStorage.set({ curCacheData: toRaw(updatedCacheData) });
+      messageToContent({
+        type: 'update_request_cache_data',
+        data: {
+          cacheKey: updatedCacheData[index].cacheKey,
+          cacheResponse: val,
+          cacheReqParams: updatedCacheData[index].params,
         }
+      },(response: any) => {
+        console.log("收到事件", response)
       });
 
       editingIndex.value = null;
@@ -296,19 +280,11 @@ const getMethodClass = (method: string) => {
   return "method-other";
 };
 
-// 打开缓存查看器
-// const openCacheViewer = () => {
-//   chrome.tabs.create({
-//     url: chrome.runtime.getURL('src/cache-viewer/index.html')
-//   });
-// }
-
 onMounted(async () => {
   // 获取当前激活状态
-  const disasterRecoveryProcessing = await chromeLocalStorage.get(
-    "disasterRecoveryProcessing"
-  );
+  const { disasterRecoveryProcessing, monitorEnabled } = await chromeLocalStorage.getAll();
   isActive.value = disasterRecoveryProcessing;
+  isMonitorEnabled.value = monitorEnabled;
 
   // 获取缓存数据
   const data = await chromeSessionStorage.get("curCacheData");
@@ -339,9 +315,28 @@ onMounted(async () => {
     &-header {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       margin-bottom: 12px;
       padding-bottom: 8px;
       border-bottom: 1px solid #e5e7eb;
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .header-right {
+        display: flex;
+        gap: 16px;
+      }
+
+      .switch-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+      }
 
       h1 {
         font-size: 18px;

@@ -16,9 +16,6 @@
           <el-option label="DELETE" value="DELETE" />
         </el-select>
       </el-form-item>
-      <el-form-item label="延迟(ms)">
-        <el-input-number v-model="mockData.delay" :min="0" />
-      </el-form-item>
       <el-form-item label="响应数据">
         <el-input
           v-model="mockData.response"
@@ -44,7 +41,6 @@ interface MockData {
   url: string;
   method: string;
   enabled: boolean;
-  delay: number;
   response: string;
 }
 
@@ -67,7 +63,6 @@ const mockData = ref<MockData>({
   url: '',
   method: 'GET',
   enabled: true,
-  delay: 200,
   response: '{}'
 });
 

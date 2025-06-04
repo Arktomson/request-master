@@ -1,4 +1,4 @@
-import { chromeLocalStorage } from "@/utils";
+import { chromeLocalStorage } from '@/utils';
 
 class IframeSidebar {
   private iframe: HTMLIFrameElement | null = null;
@@ -12,34 +12,33 @@ class IframeSidebar {
   private maxWidth = 1200; // 最大宽度，提高到1200px
   private maxWidthPercent = 0.75; // 最大宽度不超过屏幕宽度的65%
 
-  constructor() {
+  constructor() {}
+
+  public async init() {
+    const { sideBarLastVisible, monitorEnabled } = await chromeLocalStorage.get(
+      ['sideBarLastVisible', 'monitorEnabled']
+    );
+
+    if (sideBarLastVisible && monitorEnabled) {
+      this.toggle(true);
+    }
     this.setupListeners();
   }
 
-  public async init() {
-    const sideBarLastVisible = await chromeLocalStorage.get(
-      "sideBarLastVisible"
-    );
-    if (sideBarLastVisible) {
-      this.toggle(true);
-    }
-  }
-
   private async createSidebar() {
-    console.log("创建侧边栏");
     // 检查是否已经初始化过
-    if (document.getElementById("request-cache-sidebar-container")) {
+    if (document.getElementById('request-cache-sidebar-container')) {
       return;
     }
 
     // 尝试从存储中加载之前保存的宽度
     try {
-      const savedWidth = await chromeLocalStorage.get("sidebarWidth");
-      if (savedWidth && typeof savedWidth === "number") {
+      const savedWidth = await chromeLocalStorage.get('sidebarWidth');
+      if (savedWidth && typeof savedWidth === 'number') {
         this.sidebarWidth = savedWidth;
       }
     } catch (error) {
-      console.error("加载侧边栏宽度失败:", error);
+      console.error('加载侧边栏宽度失败:', error);
     }
 
     // 应用屏幕宽度百分比限制
@@ -54,74 +53,74 @@ class IframeSidebar {
     );
 
     // 创建iframe容器
-    const container = document.createElement("div");
-    container.id = "request-cache-sidebar-container";
+    const container = document.createElement('div');
+    container.id = 'request-cache-sidebar-container';
     Object.assign(container.style, {
-      position: "fixed",
-      top: "0",
-      right: "0",
+      position: 'fixed',
+      top: '0',
+      right: '0',
       width: `${this.sidebarWidth}px`,
-      height: "100vh",
+      height: '100vh',
       zIndex: this.zIndex.toString(),
-      transition: "right 0.3s ease",
-      boxShadow: "-2px 0 10px rgba(0, 0, 0, 0.15)",
-      background: "#ffffff",
+      transition: 'right 0.3s ease',
+      boxShadow: '-2px 0 10px rgba(0, 0, 0, 0.15)',
+      background: '#ffffff',
     });
 
     // 创建调整宽度的拖动条
-    const resizeHandle = document.createElement("div");
-    resizeHandle.id = "request-cache-sidebar-resize";
+    const resizeHandle = document.createElement('div');
+    resizeHandle.id = 'request-cache-sidebar-resize';
     Object.assign(resizeHandle.style, {
-      position: "absolute",
-      top: "0",
-      left: "0",
-      width: "5px",
-      height: "100%",
-      cursor: "col-resize",
-      backgroundColor: "transparent",
+      position: 'absolute',
+      top: '0',
+      left: '0',
+      width: '5px',
+      height: '100%',
+      cursor: 'col-resize',
+      backgroundColor: 'transparent',
       zIndex: (this.zIndex + 1).toString(),
     });
 
     // 添加拖动事件
-    resizeHandle.addEventListener("mousedown", this.handleResizeStart);
+    resizeHandle.addEventListener('mousedown', this.handleResizeStart);
 
     // 创建iframe
-    this.iframe = document.createElement("iframe");
-    this.iframe.id = "request-cache-sidebar-iframe";
+    this.iframe = document.createElement('iframe');
+    this.iframe.id = 'request-cache-sidebar-iframe';
     Object.assign(this.iframe.style, {
-      width: "100%",
-      height: "100%",
-      border: "none",
-      background: "#ffffff",
+      width: '100%',
+      height: '100%',
+      border: 'none',
+      background: '#ffffff',
     });
 
     // 设置iframe源 - 使用扩展的sidebar页面
     const chrome = window.chrome;
-    this.iframe.src = chrome.runtime.getURL("src/sidebar/index.html");
+    this.iframe.src = chrome.runtime.getURL('src/sidebar/index.html');
 
     // 添加一个关闭按钮
-    const closeBtn = document.createElement("div");
-    closeBtn.id = "request-cache-sidebar-close";
+    const closeBtn = document.createElement('div');
+    closeBtn.id = 'request-cache-sidebar-close';
     Object.assign(closeBtn.style, {
-      position: "absolute",
-      top: "0px",
-      left: "-20px",
-      width: "20px",
-      height: "20px",
-      background: "#333",
-      color: "#fff",
-      textAlign: "center",
-      lineHeight: "20px",
-      cursor: "pointer",
-      borderRadius: "50% 0 0 50%",
+      position: 'absolute',
+      top: '0px',
+      left: '-20px',
+      width: '20px',
+      height: '20px',
+      background: '#333',
+      color: '#fff',
+      textAlign: 'center',
+      lineHeight: '20px',
+      cursor: 'pointer',
+      borderRadius: '50% 0 0 50%',
     });
-    closeBtn.textContent = "×";
+    closeBtn.textContent = '×';
 
-    closeBtn.addEventListener("click", async () => {
+    closeBtn.addEventListener('click', async () => {
       const sidebarIfCacheState = await chromeLocalStorage.get(
-        "sidebarIfCacheState"
+        'sidebarIfCacheState'
       );
-      this.toggle(false, sidebarIfCacheState ? "hide" : "destroy");
+      this.toggle(false, sidebarIfCacheState ? 'hide' : 'destroy');
     });
 
     // 添加元素到页面
@@ -138,27 +137,27 @@ class IframeSidebar {
     this.initialX = e.clientX;
 
     const container = document.getElementById(
-      "request-cache-sidebar-container"
+      'request-cache-sidebar-container'
     );
     if (container) {
       this.initialWidth = container.offsetWidth;
     }
 
     // 添加全局事件处理
-    document.addEventListener("mousemove", this.handleResizeMove);
-    document.addEventListener("mouseup", this.handleResizeEnd);
+    document.addEventListener('mousemove', this.handleResizeMove);
+    document.addEventListener('mouseup', this.handleResizeEnd);
 
     // 添加覆盖层防止iframe捕获鼠标事件
-    const overlay = document.createElement("div");
-    overlay.id = "request-cache-sidebar-overlay";
+    const overlay = document.createElement('div');
+    overlay.id = 'request-cache-sidebar-overlay';
     Object.assign(overlay.style, {
-      position: "fixed",
-      top: "0",
-      left: "0",
-      width: "100%",
-      height: "100%",
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
       zIndex: (this.zIndex + 2).toString(),
-      cursor: "col-resize",
+      cursor: 'col-resize',
     });
     document.body.appendChild(overlay);
   };
@@ -168,7 +167,7 @@ class IframeSidebar {
     if (!this.isDragging) return;
 
     const container = document.getElementById(
-      "request-cache-sidebar-container"
+      'request-cache-sidebar-container'
     );
     if (!container) return;
 
@@ -195,11 +194,11 @@ class IframeSidebar {
     this.isDragging = false;
 
     // 移除全局事件监听
-    document.removeEventListener("mousemove", this.handleResizeMove);
-    document.removeEventListener("mouseup", this.handleResizeEnd);
+    document.removeEventListener('mousemove', this.handleResizeMove);
+    document.removeEventListener('mouseup', this.handleResizeEnd);
 
     // 移除覆盖层
-    const overlay = document.getElementById("request-cache-sidebar-overlay");
+    const overlay = document.getElementById('request-cache-sidebar-overlay');
     if (overlay) {
       overlay.remove();
     }
@@ -209,9 +208,9 @@ class IframeSidebar {
   };
 
   private hideSidebar() {
-    console.log("隐藏侧边栏");
+    console.log('隐藏侧边栏');
     const container = document.getElementById(
-      "request-cache-sidebar-container"
+      'request-cache-sidebar-container'
     );
     if (container) {
       container.style.right = `-${this.sidebarWidth}px`;
@@ -219,9 +218,9 @@ class IframeSidebar {
   }
 
   private destroySidebar() {
-    console.log("销毁侧边栏");
+    console.log('销毁侧边栏');
     const container = document.getElementById(
-      "request-cache-sidebar-container"
+      'request-cache-sidebar-container'
     );
     if (container) {
       // 先添加过渡动画
@@ -233,18 +232,17 @@ class IframeSidebar {
         this.iframe = null;
 
         // 移除窗口大小变化的监听器
-        window.removeEventListener("resize", this.handleWindowResize);
+        window.removeEventListener('resize', this.handleWindowResize);
       }, 300); // 与CSS过渡时间相匹配
     }
   }
 
   private showSidebar() {
-    console.log("显示侧边栏");
     const container = document.getElementById(
-      "request-cache-sidebar-container"
+      'request-cache-sidebar-container'
     );
     if (container) {
-      container.style.right = "0";
+      container.style.right = '0';
     } else {
       this.createSidebar();
     }
@@ -254,14 +252,14 @@ class IframeSidebar {
     // 监听来自后台或其他地方的消息
     chrome.runtime.onMessage.addListener(
       async (message, sender, sendResponse) => {
-        if (message.type === "toggle_sidebar") {
+        if (message.type === 'toggle_sidebar') {
           // 根据操作类型决定是隐藏还是销毁
           const sidebarIfCacheState = await chromeLocalStorage.get(
-            "sidebarIfCacheState"
+            'sidebarIfCacheState'
           );
           this.toggle(
             message.visible,
-            sidebarIfCacheState ? "hide" : "destroy"
+            sidebarIfCacheState ? 'hide' : 'destroy'
           );
           sendResponse({ success: true });
         }
@@ -270,7 +268,7 @@ class IframeSidebar {
     );
 
     // 监听窗口大小变化
-    window.addEventListener("resize", this.handleWindowResize);
+    window.addEventListener('resize', this.handleWindowResize);
   }
 
   // 处理窗口大小变化
@@ -278,7 +276,7 @@ class IframeSidebar {
     if (!this.isVisible) return;
 
     const container = document.getElementById(
-      "request-cache-sidebar-container"
+      'request-cache-sidebar-container'
     );
     if (!container) return;
 
@@ -297,7 +295,7 @@ class IframeSidebar {
     }
   };
 
-  public toggle(visible?: boolean, action: "hide" | "destroy" = "destroy") {
+  public toggle(visible?: boolean, action: 'hide' | 'destroy' = 'destroy') {
     // 如果传入了具体状态，就使用它，否则切换当前状态
     if (visible !== undefined) {
       this.isVisible = visible;
@@ -310,7 +308,7 @@ class IframeSidebar {
       this.showSidebar();
     } else {
       // 根据指定的action决定是隐藏还是销毁
-      if (action === "hide") {
+      if (action === 'hide') {
         this.hideSidebar();
       } else {
         this.destroySidebar();
@@ -319,7 +317,7 @@ class IframeSidebar {
 
     // 通知状态更改
     chrome.runtime.sendMessage({
-      type: "sidebar_state_changed",
+      type: 'sidebar_state_changed',
       data: {
         visible: this.isVisible,
       },
@@ -328,6 +326,7 @@ class IframeSidebar {
 }
 
 // 实例化侧边栏管理器
-new IframeSidebar().init();
+export const iframeSidebar = new IframeSidebar();
+iframeSidebar.init();
 
-console.log("HTTP缓存-侧边栏管理器已初始化");
+console.log('HTTP缓存-侧边栏管理器已初始化');

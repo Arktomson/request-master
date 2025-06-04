@@ -1,7 +1,7 @@
 <template>
   <div class="sidebar-container">
     <!-- 顶部标题区 -->
-    <Header v-model:isActive="isActive" />
+    <Header />
 
     <!-- 主体布局 -->
     <div class="main-layout">
@@ -18,6 +18,8 @@
           @select-request="selectRequest"
           @clear-requests="handleClearRequests"
           @add-mock="showAddMockDialog"
+          @delete-request="deleteRequest"
+          @add-to-mock="addRequestToMock"
         />
 
         <!-- 可拖拽分隔线(垂直方向) -->
@@ -32,10 +34,10 @@
           :mockList="mockList"
           :selectedMockIndex="selectedMockIndex"
           @select-mock="selectMock"
-          @update-mock-status="updateMockStatus"
           @edit-mock="editMock"
           @delete-mock="deleteMock"
           @add-mock="showAddMockDialog"
+          @mock-toggle="handleMockToggle"
         />
       </div>
 
@@ -64,10 +66,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { chromeLocalStorage, chromeSessionStorage } from '@/utils';
-
+import { ref, computed, onMounted, onUnmounted, toRaw } from 'vue';
+import { ElMessage } from 'element-plus';
+import { chromeLocalStorage, chromeSessionStorage, messageToContent } from '@/utils';
+import stringify from 'json-stable-stringify'
 // 导入组件
 import Header from './components/Header.vue';
 import SidebarMenu from './components/SidebarMenu.vue';
@@ -78,8 +80,7 @@ import MockDialog from './components/MockDialog.vue';
 import ResizeHandle from './components/ResizeHandle.vue';
 
 // 状态
-const isActive = ref(false);
-const activeTab = ref('1');
+const activeTab = ref('monitor');
 const mockList = ref<any[]>([]);
 const requests = ref<any[]>([]);
 const selectedRequestIndex = ref(-1);
@@ -91,13 +92,9 @@ const currentMock = ref({
   url: '',
   method: 'GET',
   enabled: true,
-  delay: 200,
   response: '{}'
 });
-const settings = ref({
-  defaultDelay: 200,
-  captureMethod: 'all'
-});
+
 const jsonContent = ref('');
 
 // DOM引用
@@ -114,7 +111,9 @@ const selectedRequest = computed(() => {
 });
 
 const selectedMock = computed(() => {
-  if (selectedMockIndex.value >= 0 && mockList.value.length > selectedMockIndex.value) {
+  if (Array.isArray(mockList.value) && 
+      selectedMockIndex.value >= 0 && 
+      selectedMockIndex.value < mockList.value.length) {
     return mockList.value[selectedMockIndex.value];
   }
   return null;
@@ -125,31 +124,57 @@ const selectRequest = (index: number) => {
   selectedRequestIndex.value = index;
   selectedMockIndex.value = -1;
   const request = requests.value[index];
+  const response = request.response;
+  if (!response) {
+    jsonContent.value = '';
+    return;
+  }
   
   try {
-    // 显示响应数据
-    if (request.response) {
-      const responseData = typeof request.response === 'string' 
-        ? JSON.parse(request.response) 
-        : request.response;
-      jsonContent.value = JSON.stringify(responseData, null, 2);
-    } else {
-      jsonContent.value = '';
-    }
+    // 如果response已经是对象，直接格式化
+    if (typeof response === 'object') {
+      console.log('response', response)
+      jsonContent.value = JSON.stringify(response, null, 2);
+    } 
   } catch (error) {
-    jsonContent.value = request.response || '';
+    // 如果解析失败，直接显示原内容
+    jsonContent.value = typeof response === 'string' ? response : JSON.stringify(response, null, 2);
   }
 };
 
 const selectMock = (index: number) => {
+  // 确保mockList是数组
+  if (!Array.isArray(mockList.value)) {
+    mockList.value = [];
+    return;
+  }
+
+  // 检查索引是否有效
+  if (index < 0 || index >= mockList.value.length) {
+    return;
+  }
+
   selectedMockIndex.value = index;
   selectedRequestIndex.value = -1;
   const mock = mockList.value[index];
   
+  if (!mock || !mock.response) {
+    jsonContent.value = '';
+    return;
+  }
+  
   try {
-    jsonContent.value = JSON.stringify(JSON.parse(mock.response), null, 2);
+    // 如果response已经是对象，直接格式化
+    if (typeof mock.response === 'object') {
+      jsonContent.value = JSON.stringify(mock.response, null, 2);
+    } else {
+      // 如果是字符串，先解析再格式化
+      const parsedResponse = JSON.parse(mock.response);
+      jsonContent.value = JSON.stringify(parsedResponse, null, 2);
+    }
   } catch (error) {
-    jsonContent.value = mock.response || '';
+    // 如果解析失败，直接显示原内容
+    jsonContent.value = typeof mock.response === 'string' ? mock.response : JSON.stringify(mock.response, null, 2);
   }
 };
 
@@ -159,19 +184,30 @@ const showAddMockDialog = () => {
   // 如果有选中的请求，使用它的信息预填
   if (selectedRequest.value) {
     const req = selectedRequest.value;
+    
+    // 处理响应数据
+    let responseData = '{}';
+    if (req.response) {
+      if (typeof req.response === 'object') {
+        responseData = JSON.stringify(req.response, null, 2);
+      } else {
+        responseData = req.response;
+      }
+    } else if (jsonContent.value) {
+      responseData = jsonContent.value;
+    }
+    
     currentMock.value = {
       url: req.url,
       method: req.method,
       enabled: true,
-      delay: settings.value.defaultDelay,
-      response: jsonContent.value || '{}'
+      response: responseData
     };
   } else {
     currentMock.value = {
       url: '',
       method: 'GET',
       enabled: true,
-      delay: settings.value.defaultDelay,
       response: '{}'
     };
   }
@@ -180,28 +216,62 @@ const showAddMockDialog = () => {
 };
 
 const editMock = (index: number) => {
+  // 确保mockList是数组
+  if (!Array.isArray(mockList.value)) {
+    mockList.value = [];
+    return;
+  }
+
+  // 检查索引是否有效
+  if (index < 0 || index >= mockList.value.length) {
+    ElMessage.error('无效的索引');
+    return;
+  }
+
   isEditMode.value = true;
   editingIndex.value = index;
   currentMock.value = { ...mockList.value[index] };
   
-  // 格式化JSON
-  try {
-    const formattedResponse = JSON.stringify(JSON.parse(currentMock.value.response), null, 2);
-    currentMock.value.response = formattedResponse;
-  } catch (e) {
-    // 保持原样
+  // 格式化JSON响应数据
+  if (currentMock.value.response) {
+    try {
+      // 如果response已经是对象，直接格式化
+      if (typeof currentMock.value.response === 'object') {
+        currentMock.value.response = JSON.stringify(currentMock.value.response, null, 2);
+      } else {
+        // 如果是字符串，先解析再格式化
+        const parsedResponse = JSON.parse(currentMock.value.response);
+        currentMock.value.response = JSON.stringify(parsedResponse, null, 2);
+      }
+    } catch (e) {
+      // 如果解析失败，保持原样（可能是非JSON字符串）
+      // currentMock.value.response 保持不变
+    }
+  } else {
+    // 如果没有response数据，设置默认值
+    currentMock.value.response = '{}';
   }
   
   mockDialogVisible.value = true;
 };
 
 const saveMock = (mockData: any) => {
+  // 确保mockList是数组
+  if (!Array.isArray(mockList.value)) {
+    mockList.value = [];
+  }
+
   if (isEditMode.value) {
-    // 编辑模式
-    mockList.value[editingIndex.value] = { ...mockData };
-    // 如果当前选中的是被编辑的mock，更新显示
-    if (selectedMockIndex.value === editingIndex.value) {
-      selectMock(editingIndex.value);
+    // 编辑模式 - 检查索引是否有效
+    if (editingIndex.value >= 0 && editingIndex.value < mockList.value.length) {
+      mockList.value[editingIndex.value] = { ...mockData };
+      // 如果当前选中的是被编辑的mock，更新显示
+      if (selectedMockIndex.value === editingIndex.value) {
+        selectMock(editingIndex.value);
+      }
+    } else {
+      ElMessage.error('无效的编辑索引');
+      return;
     }
   } else {
     // 添加模式
@@ -209,51 +279,108 @@ const saveMock = (mockData: any) => {
   }
 
   // 保存到存储
-  saveMockListToStorage();
   ElMessage.success(isEditMode.value ? 'Mock已更新' : 'Mock已添加');
 };
 
-const deleteMock = (index: number) => {
-  // 如果删除的是当前选中的
-  if (selectedMockIndex.value === index) {
-    selectedMockIndex.value = -1;
-    jsonContent.value = '';
+const addRequestToMock = async (index: number) => {
+  const request = requests.value[index];
+  if (!request) return;
+
+  // 确保mockList是数组
+  if (!Array.isArray(mockList.value)) {
+    mockList.value = [];
   }
-  
-  mockList.value.splice(index, 1);
-  saveMockListToStorage();
+
+  // 检查是否已存在相同URL和方法的Mock
+  const existingMock = mockList.value.find(mock => 
+    mock.url === request.url && mock.method === request.method
+  );
+
+  if (existingMock) {
+    ElMessage.warning('该请求已存在Mock规则');
+    return;
+  }
+
+  console.log(request.response, 'request.response')
+  const { response,cacheKey,url,method } = request;
+  // 创建新的Mock配置
+  const newMock = {
+    cacheKey: cacheKey,
+    response: toRaw(response),
+    url: url,
+    method: method,
+  };
+
+  // 添加到Mock列表
+  mockList.value.push(newMock);
+  const curMockList = await chromeLocalStorage.get('mockList') || [];
+  curMockList.push(newMock);
+  chromeLocalStorage.set({ mockList: curMockList });
+  ElMessage.success('已添加到Mock列表');
+};
+
+const deleteMock = async (cacheKey: string) => {
+  console.log('deleteMock', cacheKey)
+  selectedMockIndex.value = -1;
+  jsonContent.value = '';
+  // 确保mockList是数组
+  if (!Array.isArray(mockList.value)) {
+    mockList.value = [];
+    return;
+  }
+
+  const curMockList = await chromeLocalStorage.get('mockList') || [];
+  const newMockList = curMockList.filter((item: any) => item.cacheKey !== cacheKey);
+  chromeLocalStorage.set({ mockList: newMockList });
+  mockList.value = newMockList;
   ElMessage.success('删除成功');
 };
 
-const updateMockStatus = (index: number, enabled: boolean) => {
-  mockList.value[index].enabled = enabled;
-  saveMockListToStorage();
+const handleMockToggle = (enabled: boolean) => {
+  // Mock总开关的处理逻辑已经在MockSection组件内部处理
+  // 这里可以添加其他需要的逻辑，比如通知content script等
+  
 };
 
-const saveMockListToStorage = async () => {
-  await chromeLocalStorage.set({ mockList: mockList.value });
-  // 配置更新后通知content script
-  notifyConfigUpdate();
-};
-
-const saveSettings = () => {
-  chromeLocalStorage.set({ mockSettings: settings.value });
-  ElMessage.success('设置已保存');
-};
 
 const handleClearRequests = () => {
   requests.value = [];
   selectedRequestIndex.value = -1;
   jsonContent.value = '';
-  chromeSessionStorage.set({ curCacheData: [] });
+  
+  // 清空两个存储位置的数据
+  // chromeSessionStorage.set({ 
+  //   curCacheData: [],
+  // });
+  
   ElMessage.success('记录已清空');
 };
 
-const saveJsonContent = (content: string) => {
+const deleteRequest = (index: number) => {
+  // 如果删除的是当前选中的
+  if (selectedRequestIndex.value === index) {
+    selectedRequestIndex.value = -1;
+    jsonContent.value = '';
+  } 
+  requests.value.splice(index, 1);
+};
+
+const saveJsonContent = async (content: string) => {
   // 如果是编辑mock的响应
-  if (selectedMock.value) {
-    mockList.value[selectedMockIndex.value].response = content;
-    saveMockListToStorage();
+  if (selectedMock.value && 
+      Array.isArray(mockList.value) && 
+      selectedMockIndex.value >= 0 && 
+      selectedMockIndex.value < mockList.value.length) {
+    const parseContent = JSON.parse(content);
+    const { cacheKey } = mockList.value[selectedMockIndex.value];
+    const curMockList = await chromeLocalStorage.get('mockList') || [];
+    curMockList.forEach((item: any) => {
+      if(item.cacheKey === cacheKey){
+        item.response = parseContent;
+      }
+    });
+    mockList.value[selectedMockIndex.value].response = parseContent;
+    chromeLocalStorage.set({ mockList: curMockList });
   }
 };
 
@@ -326,126 +453,32 @@ const initLayout = () => {
 
 // 设置消息监听
 const setupMessageListener = () => {
-  chromeSessionStorage.onChange(({curMonitorData}) => {
-    if(curMonitorData){
-      requests.value = curMonitorData.newValue;
-      console.log('init receive changes', curMonitorData.newValue);
-    }
-  },'curMonitorData');
-  // chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  //   console.log('侧边栏收到消息:', message);
-    
-  //   // 处理来自content script的消息
-  //   if (message.type === 'update_current_request') {
-  //     const { data } = message;
-  //     // handleNewRequest(data);
-  //     console.log('update_current_request', data);
-  //     // switch (action) {
-  //     //   case 'update_current_request':
-  //     //     // 处理新请求
-  //     //     handleNewRequest(data);
-  //     //     break;
-          
-  //     //   case 'update_mock_status':
-  //     //     // 更新Mock状态
-  //     //     isActive.value = message.data.enabled;
-  //     //     break;
-          
-  //     //   // 其他消息类型...
-  //     //   default:
-  //     //     console.log('未知的消息类型:', action);
-  //     // }
-  //   }
-    
-  //   // 返回true表示异步处理消息
-  //   return true;
-  // });
-};
-
-// 处理新请求数据
-const handleNewRequest = (requestData: any) => {
-  // 将新请求添加到列表中
-  requests.value = [...requests.value, requestData];
-  // 如果需要，可以自动选择新请求
-  // selectRequest(requests.value.length - 1);
-};
-
-// 向content script发送消息的函数
-const sendMessageToContent = (data: any) => {
-  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-    const activeTabId = tabs[0]?.id;
-    if (activeTabId) {
-      chrome.tabs.sendMessage(activeTabId, {
-        type: 'from_sidebar',
-        data: data
-      });
-    }
-  });
-};
-
-// 监听存储更新通知
-const setupStorageListener = () => {
+  // 直接监听background发送的消息
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === "storage_updated") {
-      // 从存储中获取更新的数据
-      loadUpdatedData(message.key);
-    }
-    return true;
-  });
-};
+    console.log('Sidebar收到消息:', message.type, message);
 
-// 加载更新的数据
-const loadUpdatedData = async (key: string) => {
-  if (key === 'curCacheData') {
-    // 加载新的请求记录
-    const requestData = await chromeSessionStorage.get('curCacheData');
-    if (requestData && Array.isArray(requestData)) {
-      requests.value = requestData;
-    }
-  } else if (key === 'mockList') {
-    // 加载新的Mock列表
-    const storedMockList = await chromeLocalStorage.get('mockList');
-    if (storedMockList) {
-      mockList.value = storedMockList;
-    }
-  }
-  // ... 其他类型的数据更新处理
-};
-
-// 通知content script配置已更新
-const notifyConfigUpdate = () => {
-  chrome.runtime.sendMessage({
-    type: "from_sidebar",
-    data: {
-      action: "mock_updated"
+    if (message.type === "new_request_data") {
+      // 直接添加新的请求数据
+      requests.value.push(message.data);
+      console.log('添加新请求数据:', message.data);
+    } else if (message.type === "batch_request_data") {
+      requests.value = message.data;
+      console.log('添加批量请求数据:', message.data);
     }
   });
 };
 
 // 生命周期钩子
 onMounted(async () => {
-  // 从存储中加载状态
-  const storedMockEnabled = await chromeLocalStorage.get('mockEnabled');
-  isActive.value = storedMockEnabled === true;
 
   // 加载Mock列表
-  const storedMockList = await chromeLocalStorage.get('mockList');
-  if (storedMockList) {
+  const storedMockList = await chromeLocalStorage.get('mockList') || [];
+  if (Array.isArray(storedMockList)) {
     mockList.value = storedMockList;
+  } else {
+    mockList.value = [];
   }
 
-  // 加载设置
-  const storedSettings = await chromeLocalStorage.get('mockSettings');
-  if (storedSettings) {
-    settings.value = storedSettings;
-  }
-  
-  // 加载请求记录
-  const requestData = await chromeSessionStorage.get('curCacheData');
-  if (requestData && Array.isArray(requestData)) {
-    requests.value = requestData;
-  }
-  
   // 等待DOM渲染完成后初始化布局
   setTimeout(initLayout, 100);
   
@@ -455,11 +488,11 @@ onMounted(async () => {
   // 设置消息监听器
   setupMessageListener();
   
-  // 设置存储监听器
-  setupStorageListener();
-
-  const curMonitorData = await chromeSessionStorage.get('curMonitorData');
-  requests.value = curMonitorData;
+  messageToContent({
+    type: "sidebar_ready"
+  },(response) => {
+    console.log("已通知content script sidebar准备就绪", response);
+  });
 });
 
 onUnmounted(() => {

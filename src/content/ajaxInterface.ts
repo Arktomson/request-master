@@ -11,6 +11,7 @@ export const ajaxInterface = function () {
   function modifyJsonResponse(req, res, modifier) {
     try {
       if (req.type === "fetch") {
+        console.log(res.json, 'res.json')
         const result = modifier(res.json);
         res.json = result;
         return res;
@@ -21,6 +22,7 @@ export const ajaxInterface = function () {
         // 应用修改函数
         const modified = modifier(tranferJson);
 
+        console.log('modifyJsonResponse', modified)
         // 将修改后的对象重新序列化为字符串
         res.responseText = JSON.stringify(modified);
         res.response = JSON.stringify(modified);

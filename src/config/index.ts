@@ -18,4 +18,5 @@ export enum ProcessStatus {
   CACHE = "cache",
   RECOVERY = "recovery",
   ERROR_NO_CACHE = "error_no_cache",
+  NO_DO_SOMETHING = "no_do_something",
 }

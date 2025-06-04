@@ -5,30 +5,33 @@
       <div class="viewer-actions">
         <el-button size="small" type="primary" @click="handleCopyJson">复制</el-button>
         <el-button size="small" @click="handleFormatJson">格式化</el-button>
-      </div>
-    </div>
-    <div class="json-content">
-      <el-input
-        v-model="jsonContent"
-        type="textarea"
-        :rows="35"
-        placeholder="选择请求查看JSON响应"
-        :readonly="!isEditing"
-      />
-      <div v-if="hasContent" class="json-editor-actions">
+        <div v-if="hasContent" class="json-editor-actions">
+        <!-- 只有选择Mock时才显示编辑按钮，监控状态时不能编辑 -->
         <el-button 
-          v-if="!isEditing" 
+          v-if="!isEditing && isMockSelected" 
           type="primary" 
           size="small" 
           @click="startEditing"
         >
           编辑
         </el-button>
-        <template v-else>
+        <template v-else-if="isEditing && isMockSelected">
           <el-button type="success" size="small" @click="saveJsonEdit">保存</el-button>
           <el-button size="small" @click="cancelJsonEdit">取消</el-button>
         </template>
+
       </div>
+      </div>
+    </div>
+    <div class="json-content">
+             <el-input
+         v-model="jsonContent"
+         type="textarea"
+         :rows="38"
+         placeholder="选择请求查看JSON响应"
+         :readonly="!isEditing || !isMockSelected"
+       />
+
     </div>
   </div>
 </template>
@@ -36,6 +39,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
+import { messageToContent } from '@/utils';
 
 // 定义属性
 const props = defineProps<{
@@ -66,20 +70,31 @@ watch(() => props.content, (newValue) => {
   jsonContent.value = newValue;
 });
 
+// 监听选择状态变化，如果切换到监控状态则退出编辑模式
+watch(() => [props.isSelected, props.isMockSelected], ([isSelected, isMockSelected]) => {
+  if (isSelected && !isMockSelected && isEditing.value) {
+    // 从Mock切换到监控状态时，自动退出编辑模式
+    cancelJsonEdit();
+    ElMessage.info('已切换到监控状态，自动退出编辑模式');
+  }
+});
+
 // 方法
-const handleCopyJson = () => {
+const handleCopyJson = async () => {
   if (!jsonContent.value) {
     ElMessage.warning('没有内容可复制');
     return;
   }
-
-  navigator.clipboard.writeText(jsonContent.value)
-    .then(() => {
+  messageToContent({
+    type: 'copy_json',
+    data: jsonContent.value
+  },(response) => {
+    if(response.success){
       ElMessage.success('已复制到剪贴板');
-    })
-    .catch(() => {
+    }else{
       ElMessage.error('复制失败，请手动复制');
-    });
+    }
+  });
 };
 
 const handleFormatJson = () => {
@@ -99,6 +114,12 @@ const handleFormatJson = () => {
 };
 
 const startEditing = () => {
+  // 只有在选择Mock时才允许编辑
+  if (!props.isMockSelected) {
+    ElMessage.warning('监控状态下不允许编辑，请选择Mock项目进行编辑');
+    return;
+  }
+  
   jsonBackup.value = jsonContent.value;
   isEditing.value = true;
 };
@@ -175,8 +196,10 @@ defineExpose({
     .json-editor-actions {
       display: flex;
       justify-content: flex-end;
+      align-items: center;
       gap: 8px;
       margin-top: 12px;
+      
     }
   }
 }

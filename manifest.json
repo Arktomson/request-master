@@ -14,7 +14,8 @@
     "proxy",
     "debugger",
     "scripting",
-    "sidePanel"
+    "sidePanel",
+    "clipboardWrite"
   ],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -40,7 +41,7 @@
       "matches": ["<all_urls>"],
       "js": ["src/content/index.ts"],
       "run_at": "document_start",
-      "all_frames": true,
+      "all_frames": false,
       "type": "module"
     },
     {
