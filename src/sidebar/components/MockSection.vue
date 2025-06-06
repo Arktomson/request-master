@@ -227,7 +227,8 @@ defineExpose({
     
     .mock-item {
       display: flex;
-      padding: 8px 12px;
+      padding: 4px 6px;
+      align-items: center;
       border-bottom: 1px solid #ebeef5;
       cursor: pointer;
       

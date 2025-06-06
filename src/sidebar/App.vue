@@ -48,6 +48,8 @@
       <JsonViewer
         ref="jsonViewerRef"
         :content="jsonContent"
+        :payload="payloadContent"
+        :headers="headersContent"
         :isSelected="!!selectedRequest"
         :isMockSelected="!!selectedMock"
         @update:content="(val) => jsonContent = val"
@@ -66,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, toRaw } from 'vue';
+import { ref, computed, onMounted, onUnmounted, toRaw, nextTick } from 'vue';
 import { ElMessage } from 'element-plus';
 import { chromeLocalStorage, chromeSessionStorage, messageToContent } from '@/utils';
 import stringify from 'json-stable-stringify'
@@ -96,6 +98,8 @@ const currentMock = ref({
 });
 
 const jsonContent = ref('');
+const payloadContent = ref('');
+const headersContent = ref('');
 
 // DOM引用
 const monitorSectionRef = ref();
@@ -125,30 +129,50 @@ const selectRequest = (index: number) => {
   selectedMockIndex.value = -1;
   const request = requests.value[index];
   const response = request.response;
+  const params = request.params;
+  const headers = request.headers;
   if (!response) {
     jsonContent.value = '';
+    payloadContent.value = '';
+    headersContent.value = '';
     return;
   }
   
   try {
     // 如果response已经是对象，直接格式化
     if (typeof response === 'object') {
-      console.log('response', response)
       jsonContent.value = JSON.stringify(response, null, 2);
     } 
   } catch (error) {
     // 如果解析失败，直接显示原内容
     jsonContent.value = typeof response === 'string' ? response : JSON.stringify(response, null, 2);
   }
+
+  // 更新payload和headers
+  if (params) {
+    try {
+      let paramsObj = typeof params === 'string' ? JSON.parse(params) : params;
+      payloadContent.value = JSON.stringify(paramsObj, null, 2);
+    } catch (e) {
+      payloadContent.value = String(params);
+    }
+  } else {
+    payloadContent.value = '';
+  }
+
+  if (headers) {
+    try {
+      let headersObj = typeof headers === 'string' ? JSON.parse(headers) : headers;
+      headersContent.value = JSON.stringify(headersObj, null, 2);
+    } catch (e) {
+      headersContent.value = String(headers);
+    }
+  } else {
+    headersContent.value = '';
+  }
 };
 
 const selectMock = (index: number) => {
-  // 确保mockList是数组
-  if (!Array.isArray(mockList.value)) {
-    mockList.value = [];
-    return;
-  }
-
   // 检查索引是否有效
   if (index < 0 || index >= mockList.value.length) {
     return;
@@ -160,22 +184,30 @@ const selectMock = (index: number) => {
   
   if (!mock || !mock.response) {
     jsonContent.value = '';
+    payloadContent.value = '';
+    headersContent.value = '';
     return;
   }
-  
+  const params = mock.params;
+  const headers = mock.headers;
   try {
     // 如果response已经是对象，直接格式化
     if (typeof mock.response === 'object') {
       jsonContent.value = JSON.stringify(mock.response, null, 2);
-    } else {
-      // 如果是字符串，先解析再格式化
-      const parsedResponse = JSON.parse(mock.response);
-      jsonContent.value = JSON.stringify(parsedResponse, null, 2);
+    } 
+    if(params){
+      let paramsObj = typeof params === 'string' ? JSON.parse(params) : params;
+      payloadContent.value = JSON.stringify(toRaw(paramsObj), null, 2);
+    }
+    if(headers){
+      let headersObj = typeof headers === 'string' ? JSON.parse(headers) : headers;
+      headersContent.value = JSON.stringify(headersObj, null, 2);
     }
   } catch (error) {
     // 如果解析失败，直接显示原内容
     jsonContent.value = typeof mock.response === 'string' ? mock.response : JSON.stringify(mock.response, null, 2);
   }
+
 };
 
 const showAddMockDialog = () => {
@@ -301,14 +333,15 @@ const addRequestToMock = async (index: number) => {
     return;
   }
 
-  console.log(request.response, 'request.response')
-  const { response,cacheKey,url,method } = request;
+  const { response,cacheKey,url,method,params,headers } = request;
   // 创建新的Mock配置
   const newMock = {
     cacheKey: cacheKey,
     response: toRaw(response),
     url: url,
     method: method,
+    params: params,
+    headers: headers,
   };
 
   // 添加到Mock列表
@@ -320,9 +353,10 @@ const addRequestToMock = async (index: number) => {
 };
 
 const deleteMock = async (cacheKey: string) => {
-  console.log('deleteMock', cacheKey)
   selectedMockIndex.value = -1;
   jsonContent.value = '';
+  payloadContent.value = '';
+  headersContent.value = '';
   // 确保mockList是数组
   if (!Array.isArray(mockList.value)) {
     mockList.value = [];
@@ -347,6 +381,8 @@ const handleClearRequests = () => {
   requests.value = [];
   selectedRequestIndex.value = -1;
   jsonContent.value = '';
+  payloadContent.value = '';
+  headersContent.value = '';
   
   // 清空两个存储位置的数据
   // chromeSessionStorage.set({ 
@@ -361,6 +397,8 @@ const deleteRequest = (index: number) => {
   if (selectedRequestIndex.value === index) {
     selectedRequestIndex.value = -1;
     jsonContent.value = '';
+    payloadContent.value = '';
+    headersContent.value = '';
   } 
   requests.value.splice(index, 1);
 };

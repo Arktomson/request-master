@@ -12,33 +12,16 @@ async function initConfig() {
   const defaultSettings: Setting = {
     // 灾难恢复处理
     disasterRecoveryProcessing: true,
-    disasterRecoveryIsProcessUrl: [],
     // 是否启用劫持
     doYouWantToEnableHijacking: true,
     allowToInjectOrigin: [
-      {
-        type: 'regex',
-        domain: 'https://zfcg.czt.zj.gov.cn',
-      },
-      {
-        type: 'regex',
-        domain: 'https://www.qq.com',
-      },
-      {
-        type: 'include',
-        domain: 'https://www.qq.com',
-      },
-      {
-        type: 'fully',
-        domain: 'https://zfcg.czt.zj.gov.cn',
-      },
       {
         type: 'regex',
         domain: '(.*localhost.*|.*127.0.0.1.*)',
       },
       {
         type: 'regex',
-        domain: '.*zcy.*',
+        domain: '.*zcygov.*',
       },
     ],
 
@@ -47,10 +30,11 @@ async function initConfig() {
     mockList: [],
     mockEnabled: false,
     monitorEnabled: false,
+    sidebarWidth: 900,
     // 其他默认配置项...
   };
   Object.keys(defaultSettings).forEach(async (key) => {
-    if (!result[key]) {
+    if (result[key] === undefined || result[key] === null) {
       chromeLocalStorage.set({ [key]: defaultSettings[key] });
     }
   });

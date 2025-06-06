@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite build --mode development --outDir dist",
+    "predev": "vite build --mode development --config vite.mainworld.config.ts --outDir dist",
     "dev:watch": "nodemon --watch src --ext vue,ts,js,json --exec \"npm run dev\"",
     "build": "vite build --mode production --outDir dist-prod",
     "preview": "vite preview"

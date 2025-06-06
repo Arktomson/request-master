@@ -38,7 +38,7 @@
             effect="dark" 
             :content="item.url" 
             placement="top"
-            :show-after="500"
+            :show-after="300"
           >
             <span>{{ item.url }}</span>
           </el-tooltip>
@@ -177,7 +177,8 @@ defineExpose({
     
     .request-item {
       display: flex;
-      padding: 8px 12px;
+      align-items: center;
+      padding: 4px 6px;
       border-bottom: 1px solid #ebeef5;
       cursor: pointer;
       

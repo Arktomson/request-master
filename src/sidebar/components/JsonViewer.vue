@@ -1,37 +1,44 @@
 <template>
   <div class="json-viewer-area" ref="jsonViewerAreaRef">
     <div class="viewer-header">
-      <span>响应数据</span>
+      <span>数据面板</span>
       <div class="viewer-actions">
         <el-button size="small" type="primary" @click="handleCopyJson">复制</el-button>
         <el-button size="small" @click="handleFormatJson">格式化</el-button>
         <div v-if="hasContent" class="json-editor-actions">
-        <!-- 只有选择Mock时才显示编辑按钮，监控状态时不能编辑 -->
-        <el-button 
-          v-if="!isEditing && isMockSelected" 
-          type="primary" 
-          size="small" 
-          @click="startEditing"
-        >
-          编辑
-        </el-button>
-        <template v-else-if="isEditing && isMockSelected">
-          <el-button type="success" size="small" @click="saveJsonEdit">保存</el-button>
-          <el-button size="small" @click="cancelJsonEdit">取消</el-button>
-        </template>
-
-      </div>
+          <!-- 只有选择Mock时才显示编辑按钮，监控状态时不能编辑 -->
+          <el-button
+            v-if="!isEditing && isMockSelected && activeTab === 'response'"
+            type="primary"
+            size="small"
+            @click="startEditing"
+          >
+            编辑
+          </el-button>
+          <template v-else-if="isEditing && isMockSelected && activeTab === 'response'">
+            <el-button type="success" size="small" @click="saveJsonEdit">保存</el-button>
+            <el-button size="small" @click="cancelJsonEdit">取消</el-button>
+          </template>
+        </div>
       </div>
     </div>
-    <div class="json-content">
-             <el-input
-         v-model="jsonContent"
-         type="textarea"
-         :rows="38"
-         placeholder="选择请求查看JSON响应"
-         :readonly="!isEditing || !isMockSelected"
-       />
 
+    <!-- 新增: Tabs 区域 -->
+    <div class="json-tabs">
+      <el-tabs v-model="activeTab" type="card" class="json-tabs-bar">
+        <el-tab-pane label="Payload" name="payload" />
+        <el-tab-pane label="Header" name="header" />
+        <el-tab-pane label="Response" name="response" />
+      </el-tabs>
+    </div>
+
+    <div class="json-content">
+      <el-input
+        v-model="currentText"
+        type="textarea"
+        :rows="36"
+        :readonly="isReadonly"
+      />
     </div>
   </div>
 </template>
@@ -46,6 +53,8 @@ const props = defineProps<{
   content: string;
   isSelected: boolean;
   isMockSelected: boolean;
+  payload?: any;
+  headers?: any;
 }>();
 
 // 定义事件
@@ -59,13 +68,56 @@ const jsonContent = ref(props.content);
 const isEditing = ref(false);
 const jsonBackup = ref('');
 const jsonViewerAreaRef = ref<HTMLElement | null>(null);
+const activeTab = ref<'payload' | 'header' | 'response'>('response');
 
 // 计算属性
 const hasContent = computed(() => {
   return props.isSelected || props.isMockSelected;
 });
 
-// 监听属性变化
+const payloadContent = computed(() => {
+  const data: any = props.payload;
+  if (!data) return '';
+  try {
+    return typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  } catch (e) {
+    return String(data);
+  }
+});
+
+const headerContent = computed(() => {
+  const data: any = props.headers;
+  if (!data) return '';
+  try {
+    return typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  } catch (e) {
+    return String(data);
+  }
+});
+
+// 当前输入框展示内容
+const currentText = computed({
+  get() {
+    if (activeTab.value === 'payload') return payloadContent.value;
+    if (activeTab.value === 'header') return headerContent.value;
+    return jsonContent.value;
+  },
+  set(val: string) {
+    if (activeTab.value === 'response') {
+      jsonContent.value = val;
+    }
+  },
+});
+
+// 根据 tab 和编辑状态判断只读
+const isReadonly = computed(() => {
+  if (activeTab.value === 'response') {
+    return !isEditing.value || !props.isMockSelected;
+  }
+  return true;
+});
+
+// 监听属性变化 (保持 currentText 同步)
 watch(() => props.content, (newValue) => {
   jsonContent.value = newValue;
 });
@@ -79,15 +131,29 @@ watch(() => [props.isSelected, props.isMockSelected], ([isSelected, isMockSelect
   }
 });
 
+watch([payloadContent, headerContent], () => {
+  // 若非 response 页，更新输入框内容
+  if (activeTab.value === 'payload' || activeTab.value === 'header') {
+    // 触发重新渲染
+  }
+});
+
 // 方法
+const getActiveContent = () => {
+  if (activeTab.value === 'payload') return payloadContent.value;
+  if (activeTab.value === 'header') return headerContent.value;
+  return jsonContent.value;
+};
+
 const handleCopyJson = async () => {
-  if (!jsonContent.value) {
+  const contentToCopy = getActiveContent();
+  if (!contentToCopy) {
     ElMessage.warning('没有内容可复制');
     return;
   }
   messageToContent({
     type: 'copy_json',
-    data: jsonContent.value
+    data: contentToCopy
   },(response) => {
     if(response.success){
       ElMessage.success('已复制到剪贴板');
@@ -98,15 +164,27 @@ const handleCopyJson = async () => {
 };
 
 const handleFormatJson = () => {
-  if (!jsonContent.value) {
+  const text = getActiveContent();
+  if (!text) {
     ElMessage.warning('没有内容可格式化');
     return;
   }
 
   try {
-    const parsed = JSON.parse(jsonContent.value);
-    jsonContent.value = JSON.stringify(parsed, null, 2);
-    emit('update:content', jsonContent.value);
+    const parsed = JSON.parse(text);
+    const formatted = JSON.stringify(parsed, null, 2);
+    if (activeTab.value === 'response') {
+      jsonContent.value = formatted;
+      emit('update:content', jsonContent.value);
+    } else {
+      if (activeTab.value === 'payload') {
+        // payload只读，直接更新引用值
+        // 此处不发 update 事件，因只用于展示
+        // 如果需保存可在此 emit
+      } else {
+        // header likewise
+      }
+    }
     ElMessage.success('格式化成功');
   } catch (error) {
     ElMessage.error('JSON格式无效，无法格式化');
@@ -202,6 +280,15 @@ defineExpose({
       
     }
   }
+
+  .json-tabs {
+    border-bottom: 1px solid #ebeef5;
+    .json-tabs-bar {
+      padding: 0 12px;
+    }
+  }
+
+  // .plain-content 已废弃
 }
 
 // 响应式调整

@@ -44,6 +44,7 @@ function filterSituation(resp) {
   }
   return true;
 }
+let mockList = [];
 
 // 添加消息监听器，允许content script控制
 window.addEventListener("content_to_ajaxHook", (event) => {
@@ -52,8 +53,10 @@ window.addEventListener("content_to_ajaxHook", (event) => {
   } = event || {};
 
   if (type === "init") {
-    const { disasterRecoveryProcessing, monitorEnabled, mockList = [], mockEnabled} = message;
-    console.log('mockList', mockList)
+    const { disasterRecoveryProcessing, monitorEnabled, mockList: mockListInit = [], mockEnabled} = message;
+    mockList = mockListInit;
+    console.log('mockList', mockList) 
+    console.log(Date.now(),'ajaxHook_to_content')
     ajaxHooker.hook((request: AjaxHookRequest) => {
       console.log("request ajaxHook", request,request.type);
       request.response = (resp: AjaxHookResponse) => {
@@ -83,10 +86,6 @@ window.addEventListener("content_to_ajaxHook", (event) => {
                   }
                 }
               }
-
-              if(request.type === 'fetch'){
-                console.log('fetch-mockData', mockData)
-              }
               window.dispatchEvent(
                 new CustomEvent("ajaxHook_to_content", {
                   detail: {
@@ -97,6 +96,7 @@ window.addEventListener("content_to_ajaxHook", (event) => {
                       params: request.data,
                       response: mockData,
                       cacheKey: cacheKey,
+                      headers: request.headers,
                       time: new Date().getTime(),
                       isMock,
                     },
