@@ -12,6 +12,17 @@
       </div>
     </div>
 
+    <!-- 搜索框 -->
+    <div class="request-search">
+      <el-input
+        v-model="searchQuery"
+        size="small"
+        clearable
+        prefix-icon="Search"
+        placeholder="搜索 URL (模糊匹配)"
+      />
+    </div>
+
     <!-- 请求列表头部 -->
     <div class="request-header">
       <div class="url-column">URL</div>
@@ -23,30 +34,30 @@
     <!-- 请求列表 -->
     <div class="request-list">
       <div 
-        v-for="(item, index) in requests" 
+        v-for="(item, index) in filteredRequests" 
         :key="index" 
         class="request-item"
         :class="{
-          'selected': selectedRequestIndex === index,
-          'is-mock': item.isMock === true
+          'selected': props.selectedRequestIndex === item.originalIndex,
+          'is-mock': item.req.isMock === true
         }"
-        @click="selectRequest(index)"
-        @dblclick="emit('add-to-mock', index)"
+        @click="selectRequest(item.originalIndex)"
+        @dblclick="emit('add-to-mock', item.originalIndex)"
       >
         <div class="url-column text-ellipsis">
           <el-tooltip 
             effect="dark" 
-            :content="item.url" 
+            :content="item.req.url" 
             placement="top"
             :show-after="300"
           >
-            <span>{{ item.url }}</span>
+            <span>{{ item.req.url }}</span>
           </el-tooltip>
         </div>
-        <div class="time-column">{{ formatTime(item.time) }}</div>
+        <div class="time-column">{{ formatTime(item.req.time) }}</div>
         <div class="method-column">
-          <el-tag :type="getMethodType(item.method)" size="small">
-            {{ item.method }}
+          <el-tag :type="getMethodType(item.req.method)" size="small">
+            {{ item.req.method }}
           </el-tag>
         </div>
         <div class="action-column">
@@ -54,7 +65,7 @@
             type="danger"
             size="small"
             circle
-            @click.stop="deleteRequest(index)"
+            @click.stop="deleteRequest(item.originalIndex)"
           >
             <el-icon><Delete /></el-icon>
           </el-button>
@@ -65,12 +76,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Delete } from '@element-plus/icons-vue';
 
 // 接收父组件传递的属性
-defineProps<{
+const props = defineProps<{
   requests: any[];
   selectedRequestIndex: number;
 }>();
@@ -83,6 +94,21 @@ const emit = defineEmits<{
   (e: 'delete-request', index: number): void;
   (e: 'add-to-mock', index: number): void;
 }>();
+
+// 搜索
+const searchQuery = ref('');
+
+interface RequestWithIndex { req: any; originalIndex: number }
+
+const filteredRequests = computed<RequestWithIndex[]>(() => {
+  const q = searchQuery.value.toLowerCase();
+  return props.requests.flatMap((req, i) => {
+    if (!q || req.url?.toLowerCase().includes(q)) {
+      return { req, originalIndex: i } as RequestWithIndex;
+    }
+    return [];
+  });
+});
 
 // DOM引用
 const monitorSectionRef = ref<HTMLElement | null>(null);
@@ -107,7 +133,6 @@ const selectRequest = (index: number) => {
 };
 
 const deleteRequest = (index: number) => {
- 
   emit('delete-request', index);
   ElMessage.success('请求已删除');
 };
@@ -140,6 +165,11 @@ defineExpose({
       display: flex;
       gap: 8px;
     }
+  }
+  
+  .request-search {
+    padding: 6px 12px;
+    border-bottom: 1px solid #ebeef5;
   }
   
   .request-header {
@@ -207,10 +237,6 @@ defineExpose({
           border-radius: 2px;
           font-weight: bold;
         }
-        
-        // &:hover {
-        //   background-color: #e8f5e8;
-        // }
         
         &.selected {
           background-color: #e1f3d8;

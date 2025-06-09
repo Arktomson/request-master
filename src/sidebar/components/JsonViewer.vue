@@ -6,20 +6,20 @@
         <el-button size="small" type="primary" @click="handleCopyJson">复制</el-button>
         <el-button size="small" @click="handleFormatJson">格式化</el-button>
         <div v-if="hasContent" class="json-editor-actions">
-          <!-- 只有选择Mock时才显示编辑按钮，监控状态时不能编辑 -->
-          <el-button
+        <!-- 只有选择Mock时才显示编辑按钮，监控状态时不能编辑 -->
+        <el-button 
             v-if="!isEditing && isMockSelected && activeTab === 'response'"
-            type="primary"
-            size="small"
-            @click="startEditing"
-          >
-            编辑
-          </el-button>
+          type="primary" 
+          size="small" 
+          @click="startEditing"
+        >
+          编辑
+        </el-button>
           <template v-else-if="isEditing && isMockSelected && activeTab === 'response'">
-            <el-button type="success" size="small" @click="saveJsonEdit">保存</el-button>
-            <el-button size="small" @click="cancelJsonEdit">取消</el-button>
-          </template>
-        </div>
+          <el-button type="success" size="small" @click="saveJsonEdit">保存</el-button>
+          <el-button size="small" @click="cancelJsonEdit">取消</el-button>
+        </template>
+      </div>
       </div>
     </div>
 
@@ -33,20 +33,16 @@
     </div>
 
     <div class="json-content">
-      <el-input
-        v-model="currentText"
-        type="textarea"
-        :rows="36"
-        :readonly="isReadonly"
-      />
+      <div ref="editorRef" class="monaco-editor" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { ElMessage } from 'element-plus';
 import { messageToContent } from '@/utils';
+import * as monaco from 'monaco-editor';
 
 // 定义属性
 const props = defineProps<{
@@ -117,6 +113,56 @@ const isReadonly = computed(() => {
   return true;
 });
 
+// =============== Monaco Editor ===============
+const editorRef = ref<HTMLElement | null>(null);
+let editor: monaco.editor.IStandaloneCodeEditor | null = null;
+
+const setEditorContent = (val: string) => {
+  if (editor) {
+    const model = editor.getModel();
+    if (model && model.getValue() !== val) {
+      model.setValue(val);
+    }
+  }
+};
+
+const updateEditorOptions = () => {
+  if (!editor) return;
+  editor.updateOptions({ readOnly: isReadonly.value });
+  // 语言固定 json
+  monaco.editor.setModelLanguage(editor.getModel()!, 'json');
+  // 内容
+  setEditorContent(currentText.value || '');
+};
+
+onMounted(() => {
+  editor = monaco.editor.create(editorRef.value as HTMLElement, {
+    value: currentText.value || '',
+    language: 'json',
+    theme: 'vs-dark',
+    readOnly: isReadonly.value,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+  });
+
+  editor.onDidChangeModelContent(() => {
+    if (activeTab.value === 'response' && !isReadonly.value) {
+      jsonContent.value = editor!.getValue();
+      emit('update:content', jsonContent.value);
+    }
+  });
+});
+
+onBeforeUnmount(() => {
+  editor?.dispose();
+});
+
+/* ---------- watch 更新 ---------- */
+watch([currentText, isReadonly], () => {
+  updateEditorOptions();
+});
+
 // 监听属性变化 (保持 currentText 同步)
 watch(() => props.content, (newValue) => {
   jsonContent.value = newValue;
@@ -175,7 +221,7 @@ const handleFormatJson = () => {
     const formatted = JSON.stringify(parsed, null, 2);
     if (activeTab.value === 'response') {
       jsonContent.value = formatted;
-      emit('update:content', jsonContent.value);
+    emit('update:content', jsonContent.value);
     } else {
       if (activeTab.value === 'payload') {
         // payload只读，直接更新引用值
@@ -254,21 +300,14 @@ defineExpose({
   
   .json-content {
     flex: 1;
-    padding: 12px;
+    padding: 0 12px 12px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     
-    .el-input {
-      height: 100%;
-      overflow: hidden;
-      
-      :deep(.el-textarea__inner) {
-        height: 100%;
-        font-family: monospace;
-        resize: none;
-        overflow: auto;
-      }
+    .monaco-editor {
+      flex: 1;
+      min-height: 200px;
     }
     
     .json-editor-actions {

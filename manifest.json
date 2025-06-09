@@ -72,8 +72,8 @@
   "commands": {
     "open_sidebar": {
       "suggested_key": {
-        "default": "Alt+Shift+S",
-        "mac": "Alt+Shift+S"
+        "default": "Ctrl+H",
+        "mac": "Ctrl+H"
       },
       "description": "打开 / 切换扩展侧栏"
     }

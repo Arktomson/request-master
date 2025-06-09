@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue';
 import { crx } from '@crxjs/vite-plugin';
 import { resolve } from 'path';
 import fs from 'fs';
-import path from 'path'
+import path from 'path';
 import { viteCommonjs } from '@originjs/vite-plugin-commonjs';
 // 导入manifest并使用类型声明
 import manifestJson from './manifest.json';
@@ -16,34 +16,34 @@ function appendMainWorld() {
     writeBundle: {
       order: 'post' as const,
       handler(options, bundle) {
-        const outDir = options.dir || 'dist'
-        const manifestPath = path.join(outDir, 'manifest.json')
-        
+        const outDir = options.dir || 'dist';
+        const manifestPath = path.join(outDir, 'manifest.json');
+
         try {
           if (fs.existsSync(manifestPath)) {
-            const manifestContent = fs.readFileSync(manifestPath, 'utf8')
-            const manifest = JSON.parse(manifestContent)
-            
-            manifest.content_scripts = manifest.content_scripts || []
+            const manifestContent = fs.readFileSync(manifestPath, 'utf8');
+            const manifest = JSON.parse(manifestContent);
+
+            manifest.content_scripts = manifest.content_scripts || [];
             manifest.content_scripts.push({
               matches: ['<all_urls>'],
               js: ['ajaxHook.js'],
               run_at: 'document_start',
               all_frames: false,
-              world: 'MAIN'
-            })
-            
-            fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
-            console.log('✅ 成功修改 manifest.json')
+              world: 'MAIN',
+            });
+
+            fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+            console.debug('✅ 成功修改 manifest.json');
           } else {
-            console.warn('⚠️ manifest.json 文件不存在于:', manifestPath)
+            console.warn('⚠️ manifest.json 文件不存在于:', manifestPath);
           }
         } catch (error) {
-          console.error('❌ 修改 manifest.json 失败:', error)
+          console.error('❌ 修改 manifest.json 失败:', error);
         }
-      }
-    }
-  }
+      },
+    },
+  };
 }
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => {
       }),
       ElementPlus(),
       viteCommonjs(),
-      appendMainWorld()
+      appendMainWorld(),
     ],
     resolve: {
       alias: {

@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { serverTempErrorCodes } from "@/config";
+import { serverTempErrorCodes } from '@/config';
 export const ajaxInterface = function () {
-  const version = "1.4.5";
+  const version = '1.4.5';
   const hookInst = {
     hookFns: [],
     filters: [],
@@ -10,8 +10,8 @@ export const ajaxInterface = function () {
   // 添加处理JSON响应的辅助函数
   function modifyJsonResponse(req, res, modifier) {
     try {
-      if (req.type === "fetch") {
-        console.log(res.json, 'res.json')
+      if (req.type === 'fetch') {
+        console.debug(res.json, 'res.json');
         const result = modifier(res.json);
         res.json = result;
         return res;
@@ -22,13 +22,13 @@ export const ajaxInterface = function () {
         // 应用修改函数
         const modified = modifier(tranferJson);
 
-        console.log('modifyJsonResponse', modified)
+        console.debug('modifyJsonResponse', modified);
         // 将修改后的对象重新序列化为字符串
         res.responseText = JSON.stringify(modified);
         res.response = JSON.stringify(modified);
       }
     } catch (error) {
-      console.error("修改JSON响应时出错:", error);
+      console.error('修改JSON响应时出错:', error);
     }
 
     return res;
@@ -38,30 +38,30 @@ export const ajaxInterface = function () {
   let winAh = win.__ajaxHooker;
   const resProto = win.Response.prototype;
   const xhrResponses = [
-    "response",
-    "responseText",
-    "responseXML",
-    "status",
-    "statusText",
+    'response',
+    'responseText',
+    'responseXML',
+    'status',
+    'statusText',
   ];
-  const fetchResponses = ["arrayBuffer", "blob", "formData", "json", "text"];
-  const commonResponseProps = ["status", "statusText"];
+  const fetchResponses = ['arrayBuffer', 'blob', 'formData', 'json', 'text'];
+  const commonResponseProps = ['status', 'statusText'];
   const fetchInitProps = [
-    "method",
-    "headers",
-    "body",
-    "mode",
-    "credentials",
-    "cache",
-    "redirect",
-    "referrer",
-    "referrerPolicy",
-    "integrity",
-    "keepalive",
-    "signal",
-    "priority",
+    'method',
+    'headers',
+    'body',
+    'mode',
+    'credentials',
+    'cache',
+    'redirect',
+    'referrer',
+    'referrerPolicy',
+    'integrity',
+    'keepalive',
+    'signal',
+    'priority',
   ];
-  const xhrAsyncEvents = ["readystatechange", "load", "loadend"];
+  const xhrAsyncEvents = ['readystatechange', 'load', 'loadend'];
   const getType = {}.toString.call.bind({}.toString);
   const getDescriptor = Object.getOwnPropertyDescriptor.bind(Object);
   const emptyFn = () => {};
@@ -69,8 +69,8 @@ export const ajaxInterface = function () {
   function isThenable(obj) {
     return (
       obj &&
-      ["object", "function"].includes(typeof obj) &&
-      typeof obj.then === "function"
+      ['object', 'function'].includes(typeof obj) &&
+      typeof obj.then === 'function'
     );
   }
   function catchError(fn, ...args) {
@@ -104,7 +104,7 @@ export const ajaxInterface = function () {
   function parseHeaders(obj) {
     const headers = {};
     switch (getType(obj)) {
-      case "[object String]":
+      case '[object String]':
         for (const line of obj.trim().split(/[\r\n]+/)) {
           const [header, value] = line.split(/\s*:\s*/);
           if (!header) break;
@@ -113,12 +113,12 @@ export const ajaxInterface = function () {
             lheader in headers ? `${headers[lheader]}, ${value}` : value;
         }
         break;
-      case "[object Headers]":
+      case '[object Headers]':
         for (const [key, val] of obj) {
           headers[key] = val;
         }
         break;
-      case "[object Object]":
+      case '[object Object]':
         return {
           ...obj,
         };
@@ -148,12 +148,12 @@ export const ajaxInterface = function () {
         !filters.find((obj) => {
           switch (true) {
             case obj.type && obj.type !== type:
-            case getType(obj.url) === "[object String]" &&
+            case getType(obj.url) === '[object String]' &&
               !url.includes(obj.url):
-            case getType(obj.url) === "[object RegExp]" && !obj.url.test(url):
+            case getType(obj.url) === '[object RegExp]' && !obj.url.test(url):
             case obj.method &&
               obj.method.toUpperCase() !== method.toUpperCase():
-            case "async" in obj && obj.async !== async:
+            case 'async' in obj && obj.async !== async:
               return false;
           }
           return true;
@@ -161,12 +161,12 @@ export const ajaxInterface = function () {
       );
     }
     waitForRequestKeys() {
-      const requestKeys = ["url", "method", "abort", "headers", "data"];
+      const requestKeys = ['url', 'method', 'abort', 'headers', 'data'];
       if (!this.request.async) {
         win.__ajaxHooker.hookInsts.forEach(({ hookFns, filters }) => {
           if (this.shouldFilter(filters)) return;
           hookFns.forEach((fn) => {
-            if (getType(fn) === "[object Function]")
+            if (getType(fn) === '[object Function]')
               catchError(fn, this.request);
           });
           requestKeys.forEach((key) => {
@@ -196,14 +196,14 @@ export const ajaxInterface = function () {
       return Promise.all(promises);
     }
     waitForResponseKeys(response) {
-      const base = this.request.type === "xhr" ? xhrResponses : fetchResponses;
+      const base = this.request.type === 'xhr' ? xhrResponses : fetchResponses;
       const responseKeys = [...base, ...commonResponseProps];
       if (!this.request.async) {
-        if (getType(this.request.response) === "[object Function]") {
+        if (getType(this.request.response) === '[object Function]') {
           catchError(this.request.response, response);
           responseKeys.forEach((key) => {
             if (
-              "get" in getDescriptor(response, key) ||
+              'get' in getDescriptor(response, key) ||
               isThenable(response[key])
             ) {
               delete response[key];
@@ -217,7 +217,7 @@ export const ajaxInterface = function () {
           Promise.all(
             responseKeys.map((key) => {
               const descriptor = getDescriptor(response, key);
-              if (descriptor && "value" in descriptor) {
+              if (descriptor && 'value' in descriptor) {
                 return Promise.resolve(descriptor.value).then(
                   (val) => (response[key] = val),
                   () => delete response[key]
@@ -244,12 +244,12 @@ export const ajaxInterface = function () {
       if (ah && ah.proxyProps) {
         if (prop in ah.proxyProps) {
           const pDescriptor = ah.proxyProps[prop];
-          if ("get" in pDescriptor) return pDescriptor.get();
-          if (typeof pDescriptor.value === "function")
+          if ('get' in pDescriptor) return pDescriptor.get();
+          if (typeof pDescriptor.value === 'function')
             return pDescriptor.value.bind(ah);
           return pDescriptor.value;
         }
-        if (typeof target[prop] === "function")
+        if (typeof target[prop] === 'function')
           return target[prop].bind(target);
       }
       return target[prop];
@@ -283,11 +283,11 @@ export const ajaxInterface = function () {
         proxyProps: {},
         proxyEvents: {},
       });
-      xhr.addEventListener("readystatechange", (e) => {
+      xhr.addEventListener('readystatechange', (e) => {
         if (
           ah.proxyXhr.readyState === 4 &&
           ah.request &&
-          typeof ah.request.response === "function"
+          typeof ah.request.response === 'function'
         ) {
           const response = {
             finalUrl: ah.proxyXhr.responseURL,
@@ -326,21 +326,21 @@ export const ajaxInterface = function () {
         }
         ah.dispatchEvent(e);
       });
-      xhr.addEventListener("load", (e) => ah.dispatchEvent(e));
-      xhr.addEventListener("loadend", (e) => ah.dispatchEvent(e));
+      xhr.addEventListener('load', (e) => ah.dispatchEvent(e));
+      xhr.addEventListener('loadend', (e) => ah.dispatchEvent(e));
       for (const evt of xhrAsyncEvents) {
-        const onEvt = "on" + evt;
+        const onEvt = 'on' + evt;
         ah.proxyProps[onEvt] = {
           get: () => ah.proxyEvents[onEvt] || null,
           set: (val) => ah.addEvent(onEvt, val),
         };
       }
       for (const method of [
-        "setRequestHeader",
-        "addEventListener",
-        "removeEventListener",
-        "open",
-        "send",
+        'setRequestHeader',
+        'addEventListener',
+        'removeEventListener',
+        'open',
+        'send',
       ]) {
         ah.proxyProps[method] = {
           value: ah[method],
@@ -349,29 +349,29 @@ export const ajaxInterface = function () {
     }
     toJSON() {} // Converting circular structure to JSON
     addEvent(type, event) {
-      if (type.startsWith("on")) {
-        this.proxyEvents[type] = typeof event === "function" ? event : null;
+      if (type.startsWith('on')) {
+        this.proxyEvents[type] = typeof event === 'function' ? event : null;
       } else {
-        if (typeof event === "object" && event !== null)
+        if (typeof event === 'object' && event !== null)
           event = event.handleEvent;
-        if (typeof event !== "function") return;
+        if (typeof event !== 'function') return;
         this.proxyEvents[type] = this.proxyEvents[type] || new Set();
         this.proxyEvents[type].add(event);
       }
     }
     removeEvent(type, event) {
-      if (type.startsWith("on")) {
+      if (type.startsWith('on')) {
         this.proxyEvents[type] = null;
       } else {
-        if (typeof event === "object" && event !== null)
+        if (typeof event === 'object' && event !== null)
           event = event.handleEvent;
         this.proxyEvents[type] && this.proxyEvents[type].delete(event);
       }
     }
     dispatchEvent(e) {
       e.stopImmediatePropagation = stopImmediatePropagation;
-      defineProp(e, "target", () => this.proxyXhr);
-      defineProp(e, "currentTarget", () => this.proxyXhr);
+      defineProp(e, 'target', () => this.proxyXhr);
+      defineProp(e, 'currentTarget', () => this.proxyXhr);
       this.proxyEvents[e.type] &&
         this.proxyEvents[e.type].forEach((fn) => {
           this.resThenable.then(
@@ -379,7 +379,7 @@ export const ajaxInterface = function () {
           );
         });
       if (e.ajaxHooker_isStopped) return;
-      const onEvent = this.proxyEvents["on" + e.type];
+      const onEvent = this.proxyEvents['on' + e.type];
       onEvent && this.resThenable.then(onEvent.bind(this.proxyXhr, e));
     }
     setRequestHeader(header, value) {
@@ -405,7 +405,7 @@ export const ajaxInterface = function () {
     }
     open(method, url, async = true, ...args) {
       this.request = {
-        type: "xhr",
+        type: 'xhr',
         url: url.toString(),
         method: method.toUpperCase(),
         abort: false,
@@ -417,10 +417,10 @@ export const ajaxInterface = function () {
       this.openArgs = args;
       this.resThenable = new SyncThenable();
       [
-        "responseURL",
-        "readyState",
-        "status",
-        "statusText",
+        'responseURL',
+        'readyState',
+        'status',
+        'statusText',
         ...xhrResponses,
       ].forEach((key) => {
         delete this.proxyProps[key];
@@ -435,7 +435,7 @@ export const ajaxInterface = function () {
       request.data = data;
       new AHRequest(request).waitForRequestKeys().then(() => {
         if (request.abort) {
-          if (typeof request.response === "function") {
+          if (typeof request.response === 'function') {
             Object.assign(ah.proxyProps, {
               responseURL: {
                 value: request.url,
@@ -447,7 +447,7 @@ export const ajaxInterface = function () {
                 value: 200,
               },
               statusText: {
-                value: "OK",
+                value: 'OK',
               },
             });
             xhrAsyncEvents.forEach((evt) => xhr.dispatchEvent(new Event(evt)));
@@ -464,8 +464,8 @@ export const ajaxInterface = function () {
   }
   function fakeXHR() {
     const xhr = new winAh.realXHR();
-    if ("__ajaxHooker" in xhr)
-      console.warn("检测到不同版本的ajaxHooker，可能发生冲突！");
+    if ('__ajaxHooker' in xhr)
+      console.warn('检测到不同版本的ajaxHooker，可能发生冲突！');
     xhr.__ajaxHooker = new XhrHooker(xhr);
     return xhr.__ajaxHooker.proxyXhr;
   }
@@ -489,10 +489,10 @@ export const ajaxInterface = function () {
       }
       url = url.toString();
       Object.assign(init, options);
-      init.method = init.method || "GET";
+      init.method = init.method || 'GET';
       init.headers = init.headers || {};
       const request = {
-        type: "fetch",
+        type: 'fetch',
         url: url,
         method: init.method.toUpperCase(),
         abort: false,
@@ -504,7 +504,7 @@ export const ajaxInterface = function () {
       const req = new AHRequest(request);
       await req.waitForRequestKeys();
       if (request.abort) {
-        if (typeof request.response === "function") {
+        if (typeof request.response === 'function') {
           const response = {
             finalUrl: request.url,
             status: 200,
@@ -513,32 +513,33 @@ export const ajaxInterface = function () {
           await req.waitForResponseKeys(response);
           const key = fetchResponses.find((k) => k in response);
           let val = response[key];
-          if (key === "json" && typeof val === "object") {
+          if (key === 'json' && typeof val === 'object') {
             val = catchError(JSON.stringify.bind(JSON), val);
           }
           const res = new Response(val, {
             status: 200,
-            statusText: "OK",
+            statusText: 'OK',
           });
-          defineProp(res, "type", () => "basic");
-          defineProp(res, "url", () => request.url);
+          defineProp(res, 'type', () => 'basic');
+          defineProp(res, 'url', () => request.url);
           resolve(res);
         } else {
-          reject(new DOMException("aborted", "AbortError"));
+          reject(new DOMException('aborted', 'AbortError'));
         }
         return;
       }
       init.method = request.method;
       init.headers = request.headers;
       init.body = request.data;
-      winAh.realFetch.call(win, request.url, init).then(
-        async (res) => {
-          if (typeof request.response === "function") {
+      winAh.realFetch
+        .call(win, request.url, init)
+        .then(async (res) => {
+          if (typeof request.response === 'function') {
             // 对于错误状态码且是JSON格式的响应，进行特殊处理
             if (serverTempErrorCodes.includes(res.status)) {
               // 检查Content-Type是否为JSON
-              const contentType = res.headers.get("content-type");
-              if (contentType && contentType.includes("json")) {
+              const contentType = res.headers.get('content-type');
+              if (contentType && contentType.includes('json')) {
                 try {
                   // 尝试读取响应体
                   let responseData = await res.json();
@@ -566,7 +567,7 @@ export const ajaxInterface = function () {
                       JSON.stringify(modifiedResponse.json),
                     {
                       status: modifiedResponse.status || 200,
-                      statusText: modifiedResponse.statusText || "OK",
+                      statusText: modifiedResponse.statusText || 'OK',
                       headers: new Headers(
                         modifiedResponse.responseHeaders || {}
                       ),
@@ -576,15 +577,15 @@ export const ajaxInterface = function () {
                   // 为新的Response对象添加方法
                   fetchResponses.forEach((key) => {
                     mockResponse[key] = function () {
-                      if (key === "json") {
+                      if (key === 'json') {
                         return Promise.resolve(
                           modifiedResponse.json ||
-                            JSON.parse(modifiedResponse.text || "{}")
+                            JSON.parse(modifiedResponse.text || '{}')
                         );
-                      } else if (key === "text") {
+                      } else if (key === 'text') {
                         return Promise.resolve(
                           modifiedResponse.text ||
-                            JSON.stringify(modifiedResponse.json || "")
+                            JSON.stringify(modifiedResponse.json || '')
                         );
                       } else {
                         return Promise.resolve(modifiedResponse[key]);
@@ -595,10 +596,10 @@ export const ajaxInterface = function () {
                   resolve(mockResponse);
                   return;
                 } catch (error) {
-                  console.error("读取错误响应失败:", error);
+                  console.error('读取错误响应失败:', error);
                 }
               } else {
-                console.log("错误响应非JSON格式，不进行处理:", contentType);
+                console.debug('错误响应非JSON格式，不进行处理:', contentType);
               }
             }
 
@@ -624,8 +625,8 @@ export const ajaxInterface = function () {
             });
           }
           resolve(res);
-        }
-      ).catch(reject);;
+        })
+        .catch(reject);
     });
   }
   function fakeFetchClone() {
@@ -645,7 +646,7 @@ export const ajaxInterface = function () {
     hookInsts: new Set(),
   };
   if (winAh.version !== version)
-    console.warn("检测到不同版本的ajaxHooker，可能发生冲突！");
+    console.warn('检测到不同版本的ajaxHooker，可能发生冲突！');
   win.XMLHttpRequest = winAh.fakeXHR;
   win.fetch = winAh.fakeFetch;
   resProto.clone = winAh.fakeFetchClone;
@@ -685,10 +686,10 @@ export const ajaxInterface = function () {
     if (win.secsdk.csrf && win.secsdk.csrf.nativeXMLHttpRequestOpen)
       hookSecsdk(win.secsdk.csrf);
   } else {
-    defineProp(win, "secsdk", emptyFn, (secsdk) => {
+    defineProp(win, 'secsdk', emptyFn, (secsdk) => {
       delete win.secsdk;
       win.secsdk = secsdk;
-      defineProp(secsdk, "csrf", emptyFn, (csrf) => {
+      defineProp(secsdk, 'csrf', emptyFn, (csrf) => {
         delete secsdk.csrf;
         secsdk.csrf = csrf;
         if (csrf.nativeXMLHttpRequestOpen) hookSecsdk(csrf);
@@ -708,12 +709,12 @@ export const ajaxInterface = function () {
         type: request.type,
       };
       window.dispatchEvent(
-        new CustomEvent("ajaxHook_request", {
+        new CustomEvent('ajaxHook_request', {
           detail: JSON.stringify(requestData),
         })
       );
     } catch (e) {
-      console.error("发送请求事件失败:", e);
+      console.error('发送请求事件失败:', e);
     }
   });
 
@@ -724,16 +725,16 @@ export const ajaxInterface = function () {
       if (Array.isArray(arr)) hookInst.filters = arr;
     },
     protect: () => {
-      readonly(win, "XMLHttpRequest", winAh.fakeXHR);
-      readonly(win, "fetch", winAh.fakeFetch);
-      readonly(resProto, "clone", winAh.fakeFetchClone);
+      readonly(win, 'XMLHttpRequest', winAh.fakeXHR);
+      readonly(win, 'fetch', winAh.fakeFetch);
+      readonly(resProto, 'clone', winAh.fakeFetchClone);
     },
     unhook: () => {
       winAh.hookInsts.delete(hookInst);
       if (!winAh.hookInsts.size) {
-        writable(win, "XMLHttpRequest", winAh.realXHR);
-        writable(win, "fetch", winAh.realFetch);
-        writable(resProto, "clone", winAh.realFetchClone);
+        writable(win, 'XMLHttpRequest', winAh.realXHR);
+        writable(win, 'fetch', winAh.realFetch);
+        writable(resProto, 'clone', winAh.realFetchClone);
         delete win.__ajaxHooker;
       }
     },

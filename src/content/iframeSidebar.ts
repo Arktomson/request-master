@@ -208,7 +208,7 @@ class IframeSidebar {
   };
 
   private hideSidebar() {
-    console.log('隐藏侧边栏');
+    console.debug('隐藏侧边栏');
     const container = document.getElementById(
       'request-cache-sidebar-container'
     );
@@ -218,7 +218,7 @@ class IframeSidebar {
   }
 
   private destroySidebar() {
-    console.log('销毁侧边栏');
+    console.debug('销毁侧边栏');
     const container = document.getElementById(
       'request-cache-sidebar-container'
     );
@@ -329,4 +329,4 @@ class IframeSidebar {
 export const iframeSidebar = new IframeSidebar();
 iframeSidebar.init();
 
-console.log('HTTP缓存-侧边栏管理器已初始化');
+console.debug('HTTP缓存-侧边栏管理器已初始化');

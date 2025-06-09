@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, toRaw, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, toRaw, nextTick, watchEffect, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { chromeLocalStorage, chromeSessionStorage, messageToContent } from '@/utils';
 import stringify from 'json-stable-stringify'
@@ -325,7 +325,7 @@ const addRequestToMock = async (index: number) => {
 
   // 检查是否已存在相同URL和方法的Mock
   const existingMock = mockList.value.find(mock => 
-    mock.url === request.url && mock.method === request.method
+    mock.cacheKey === request.cacheKey
   );
 
   if (existingMock) {
@@ -369,7 +369,6 @@ const deleteMock = async (cacheKey: string) => {
   mockList.value = newMockList;
   ElMessage.success('删除成功');
 };
-
 const handleMockToggle = (enabled: boolean) => {
   // Mock总开关的处理逻辑已经在MockSection组件内部处理
   // 这里可以添加其他需要的逻辑，比如通知content script等
@@ -493,18 +492,36 @@ const initLayout = () => {
 const setupMessageListener = () => {
   // 直接监听background发送的消息
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log('Sidebar收到消息:', message.type, message);
+    console.debug('Sidebar收到消息:', message.type, message);
 
     if (message.type === "new_request_data") {
       // 直接添加新的请求数据
       requests.value.push(message.data);
-      console.log('添加新请求数据:', message.data);
+      console.debug('添加新请求数据:', message.data);
     } else if (message.type === "batch_request_data") {
       requests.value = message.data;
-      console.log('添加批量请求数据:', message.data);
+      console.debug('添加批量请求数据:', message.data);
     }
   });
 };
+
+const notifyMockList = (val: any) => {
+    messageToContent({
+        type: 'mockList_change',
+        data: val
+      }, () => {});
+};
+
+// 监听 mockList 深度变化，保持存储和注入脚本同步
+watch(
+  mockList,
+  (val) => {
+    console.debug('mockList', val);
+    // chromeLocalStorage.set({ mockList: val });
+    notifyMockList(val);
+  },
+  { deep: true }
+);
 
 // 生命周期钩子
 onMounted(async () => {
@@ -529,7 +546,7 @@ onMounted(async () => {
   messageToContent({
     type: "sidebar_ready"
   },(response) => {
-    console.log("已通知content script sidebar准备就绪", response);
+    console.debug("已通知content script sidebar准备就绪", response);
   });
 });
 

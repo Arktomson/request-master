@@ -74,11 +74,23 @@ export function generateCacheKeyFromQueryString(
   // 调用主函数生成键
   return generateCacheKey(url, params);
 }
-export function messageToContent(data: Record<string, any>, cb: (response: any) => void) {
+export function messageToContent(
+  data: Record<string, any>,
+  cb: (response: any) => void
+) {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     if (tabs[0]?.id) {
-      chrome.tabs.sendMessage(tabs[0].id, data, cb)
+      chrome.tabs.sendMessage(tabs[0].id, data, cb);
     }
   });
 }
-export { default as RequestCacheDB } from './indexdb';
+export function customEventSend(eventName: string, data: Record<string, any>) {
+  window.dispatchEvent(
+    new CustomEvent(eventName, {
+      detail: data,
+      cancelable: true,
+      bubbles: false,
+    })
+  );
+}
+export { default as RequestCacheDB } from './requestDB';

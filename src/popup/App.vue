@@ -239,13 +239,13 @@ const saveEdit = async (index: number) => {
         response: JSON.parse(editingContent.value)
       };
       
-      console.log("updatedCacheData", updatedCacheData)
+      console.debug("updatedCacheData", updatedCacheData)
       // 更新本地状态
       curCacheData.value = updatedCacheData;
       
-      console.log("editingContent.value", editingContent.value)
+      console.debug("editingContent.value", editingContent.value)
       const val = JSON.parse(editingContent.value)
-      console.log("val", val)
+      console.debug("val", val)
       // 更新存储中的数据
       await chromeSessionStorage.set({ curCacheData: toRaw(updatedCacheData) });
       messageToContent({
@@ -256,7 +256,7 @@ const saveEdit = async (index: number) => {
           cacheReqParams: updatedCacheData[index].params,
         }
       },(response: any) => {
-        console.log("收到事件", response)
+        console.debug("收到事件", response)
       });
 
       editingIndex.value = null;
@@ -292,12 +292,13 @@ onMounted(async () => {
 
   // 监听缓存数据变化
   chromeSessionStorage.onChange((changes: any) => {
-    console.log("变化", changes);
+    console.debug("变化", changes);
     if (changes.curCacheData && changes.curCacheData.newValue) {
       curCacheData.value = changes.curCacheData.newValue;
     }
   }, "curCacheData");
 });
+
 </script>
 
 <style scoped lang="scss">

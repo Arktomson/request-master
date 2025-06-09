@@ -36,7 +36,8 @@ export class CacheManager {
   set(k: string, v: Value) {
     if (this.map.has(k)) this.map.delete(k);
     /** 超限前先淘汰 */
-    if (this.map.size >= this.maxEntries) this.evict(Math.ceil(this.maxEntries * 0.2));
+    if (this.map.size >= this.maxEntries)
+      this.evict(Math.ceil(this.maxEntries * 0.2));
     this.map.set(k, v);
     this.markDirty();
   }
@@ -58,7 +59,9 @@ export class CacheManager {
       if (!raw) return;
       const obj = JSON.parse(raw) as Record<string, Value>;
       Object.entries(obj).forEach(([k, v]) => this.map.set(k, v));
-    } catch { /* Ignore corrupted data */ }
+    } catch {
+      /* Ignore corrupted data */
+    }
   }
 
   private flush = () => {
@@ -68,7 +71,7 @@ export class CacheManager {
     try {
       const json = JSON.stringify(Object.fromEntries(this.map));
       if (json.length > HARD_LIMIT) this.evict(Math.ceil(this.map.size * 0.3));
-      console.log('flush update data', json.length)
+      console.debug('flush update data', json.length);
       localStorage.setItem(KEY, json);
       this.dirty = false;
     } catch (e) {
@@ -103,7 +106,9 @@ export class CacheManager {
       try {
         const obj = JSON.parse(e.newValue) as Record<string, Value>;
         this.map = new Map(Object.entries(obj));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   };
 }
