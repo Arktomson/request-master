@@ -74,9 +74,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watchEffect, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { chromeLocalStorage } from '@/utils';
+import { chromeLocalStorage, customEventSend, messageToContent } from '@/utils';
 import { Edit, Delete } from '@element-plus/icons-vue';
 
 // 接收父组件传递的属性
@@ -126,7 +126,6 @@ const handleAddMock = () => {
 
 const handleMockToggle = (enabled: boolean) => {
   emit('mock-toggle', enabled);
-  chromeLocalStorage.set({ mockEnabled: enabled });
   ElMessage.success(enabled ? 'Mock已开启' : 'Mock已关闭');
 };
 
@@ -134,6 +133,14 @@ const handleMockToggle = (enabled: boolean) => {
 onMounted(async () => {
   const storedMockEnabled = await chromeLocalStorage.get('mockEnabled');
   mockEnabled.value = storedMockEnabled === true;
+});
+
+watch(mockEnabled, (newVal) => {
+  chromeLocalStorage.set({ mockEnabled: newVal });
+  messageToContent({
+    type: 'mockEnabled_change',
+    data: newVal
+  }, () => {});
 });
 
 // 暴露给父组件的方法和属性

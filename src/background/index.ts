@@ -42,12 +42,13 @@ async function initConfig() {
       chromeLocalStorage.set({ [key]: defaultSettings[key] });
     }
   });
-  console.debug('配置已初始化:', defaultSettings);
+  
+  
 }
 async function initEvent() {
   chrome.runtime.onMessage.addListener(
     async (message, sender, sendResponse) => {
-      console.debug('Background收到消息:', message.type, message);
+      
 
       try {
         if (message.type === 'update_badge') {
@@ -68,7 +69,7 @@ async function initEvent() {
           await chromeSessionStorage.set({ curCacheData });
           sendResponse({ success: true });
         } else if (message.type === 'sidebar_state_changed') {
-          console.debug('侧边栏状态更改:', message.data?.visible);
+          
           sendResponse({ success: true });
         } else {
           sendResponse({ success: false, error: 'Unknown message type' });
@@ -84,14 +85,14 @@ async function initEvent() {
 
   chrome.commands.onCommand.addListener(async (command) => {
     if (command === 'open_sidebar') {
-      console.debug('open_sidebar');
+      
       // 切换iframe侧边栏
       messageToContent(
         {
           type: 'toggle_sidebar',
         },
         (response) => {
-          console.debug('toggle_sidebar', response);
+          
         }
       );
     }
@@ -106,12 +107,12 @@ main();
 
 // // 添加保持Service Worker活跃的连接监听器
 // chrome.runtime.onConnect.addListener((port) => {
-//   console.debug("建立连接:", port.name);
+//   
 
 //   if (port.name === "keepAlive") {
 //     // @ts-ignore 添加timer属性到port对象
 //     port.timer = setTimeout(() => {
-//       console.debug("主动断开连接，等待重连...");
+//       
 //       port.disconnect();
 //       // @ts-ignore 清除计时器
 //       if (port.timer) {
@@ -124,7 +125,7 @@ main();
 
 chrome.runtime.onInstalled.addListener(async () => {
   await initConfig();
-  console.debug('扩展已安装并初始化');
+  
 });
 
-console.debug('HTTP缓存-Background-Script已加载');
+

@@ -56,8 +56,9 @@ function filterSituation(resp) {
 }
 let mockList = [];
 let mockEnabled = false;
+let monitorEnabled = false;
 let disasterRecoveryProcessing = false;
-// 添加消息监听器，允许content script控制
+
 window.addEventListener('content_to_ajaxHook', (event) => {
   const { detail: { type, message } = {} } = event || {};
 
@@ -66,7 +67,7 @@ window.addEventListener('content_to_ajaxHook', (event) => {
 
     const {
       disasterRecoveryProcessing: disasterRecoveryProcessingInit,
-      monitorEnabled,
+      monitorEnabled: monitorEnabledInit,
       mockList: mockListInit = [],
       mockEnabled: mockEnabledInit,
     } = message;
@@ -74,17 +75,13 @@ window.addEventListener('content_to_ajaxHook', (event) => {
     disasterRecoveryProcessing = disasterRecoveryProcessingInit;
     mockEnabled = mockEnabledInit;
     mockList = mockListInit;
+    monitorEnabled = monitorEnabledInit;
 
-    console.debug('mockList', mockList);
-    console.debug(Date.now(), 'ajaxHook_to_content');
     ajaxHooker.hook((request: AjaxHookRequest) => {
-      console.debug('request ajaxHook', request, request.type);
       request.response = (resp: AjaxHookResponse) => {
         if (!filterSituation(resp)) {
           return resp;
         }
-        console.debug('resp ajaxHook', resp);
-
         return ajaxHooker.modifyJsonResponse(
           request,
           resp as AjaxHookResponse,
@@ -104,7 +101,7 @@ window.addEventListener('content_to_ajaxHook', (event) => {
                     resp.status = 200;
                     resp.statusText = 'OK';
                     isMock = true;
-                    console.debug('已使用mock数据', json);
+                    
                   }
                 }
               }
@@ -129,7 +126,7 @@ window.addEventListener('content_to_ajaxHook', (event) => {
             if (disasterRecoveryProcessing) {
               switch (status) {
                 case ProcessStatus.RECOVERY:
-                  console.debug('命中缓存', cacheKey, request, resp);
+                  
                   resp.status = 200;
                   resp.statusText = 'OK';
                   // 🔥 使用缓存管理器获取缓存数据
@@ -168,8 +165,13 @@ window.addEventListener('content_to_ajaxHook', (event) => {
       };
     });
   } else if (type === 'mockList_change') {
-    const { mockList: mockListChange = [] } = message;
-    mockList = mockListChange;
-    console.debug('mockList_change', mockList);
-  }
+    mockList = message;
+  } else if (type === 'mockEnabled_change') {
+    mockEnabled = message;
+  } else if (type === 'monitorEnabled_change') {
+    console.log('monitorEnabled_change ajaxHook', message);
+    monitorEnabled = message;
+  } else if (type === 'disasterRecoveryProcessing_change') {
+    disasterRecoveryProcessing = message;
+  } 
 });

@@ -71,7 +71,7 @@ export class CacheManager {
     try {
       const json = JSON.stringify(Object.fromEntries(this.map));
       if (json.length > HARD_LIMIT) this.evict(Math.ceil(this.map.size * 0.3));
-      console.debug('flush update data', json.length);
+      
       localStorage.setItem(KEY, json);
       this.dirty = false;
     } catch (e) {

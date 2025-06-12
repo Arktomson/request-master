@@ -144,7 +144,7 @@ const sidebarIfCacheState = ref(false);
 const debouncedSaveCache = debounce(async () => {
   try {
     await chrome.storage.sync.set({ cacheConfig });
-    console.debug("[调试] 缓存配置已保存(防抖):", cacheConfig);
+    
   } catch (error) {
     console.error("保存缓存配置失败:", error);
   }
@@ -182,13 +182,13 @@ const loadCacheConfig = async () => {
 
     // 如果没有配置或配置不完整，使用默认配置
     if (!loadedCacheConfig) {
-      console.debug("[调试] 未找到缓存配置，使用默认配置");
+      
       loadedCacheConfig = JSON.parse(JSON.stringify(DEFAULT_CACHE_CONFIG));
     }
 
     // 确保domainRules结构完整
     if (!loadedCacheConfig.domainRules) {
-      console.debug("[调试] domainRules不存在，使用默认值");
+      
       loadedCacheConfig.domainRules = {
         checkAll: true,
         rules: [] as DomainRule[],
@@ -197,7 +197,7 @@ const loadCacheConfig = async () => {
 
     // 确保checkAll属性存在，并默认为true
     if (loadedCacheConfig.domainRules.checkAll === undefined) {
-      console.debug("[调试] checkAll未定义，设置为true");
+      
       loadedCacheConfig.domainRules.checkAll = true;
     }
 
@@ -228,7 +228,7 @@ const loadCacheConfig = async () => {
 
     // 更新缓存配置
     Object.assign(cacheConfig, loadedCacheConfig);
-    console.debug("[调试] 加载的缓存配置:", cacheConfig);
+    
   } catch (error) {
     console.error("加载缓存配置失败:", error);
   }
@@ -272,10 +272,7 @@ const addDomainRule = async () => {
     };
     cacheConfig.domainRules.rules.push(newRule);
     await chrome.storage.sync.set({ cacheConfig });
-    console.debug(
-      "[调试] 已添加新规则，当前规则数:",
-      cacheConfig.domainRules.rules.length
-    );
+    
   } catch (error) {
     console.error("[调试] 添加规则失败:", error);
   }
@@ -286,10 +283,7 @@ const removeDomainRule = async (index: number) => {
   try {
     cacheConfig.domainRules.rules.splice(index, 1);
     await chrome.storage.sync.set({ cacheConfig });
-    console.debug(
-      "[调试] 已删除规则，当前规则数:",
-      cacheConfig.domainRules.rules.length
-    );
+    
   } catch (error) {
     console.error("[调试] 删除规则失败:", error);
   }
@@ -318,7 +312,7 @@ const resetConfig = async () => {
   try {
     await chrome.storage.sync.remove("cacheConfig");
     Object.assign(cacheConfig, DEFAULT_CACHE_CONFIG);
-    console.debug("[调试] 配置已重置");
+    
   } catch (error) {
     console.error("重置配置失败:", error);
   }
@@ -335,7 +329,7 @@ watch(
 // 在组件挂载后执行
 onMounted(async () => {
   try {
-    console.debug("[调试] 组件挂载，初始化...");
+    
     // 强制设置默认状态
     cacheConfig.domainRules.checkAll = true;
 
@@ -347,10 +341,6 @@ onMounted(async () => {
     const manifest = chrome.runtime.getManifest();
     version.value = manifest.version;
 
-    console.debug("[调试] 初始状态:", {
-      settings: { ...settings },
-      cacheConfig: { ...cacheConfig },
-    });
   } catch (err) {
     console.error("[调试] 初始化出错:", err);
   }

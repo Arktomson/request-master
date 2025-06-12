@@ -8,23 +8,21 @@ import {
 (function () {
   // 防止在iframe中重复执行
   if (window.top !== window) {
-    console.debug(`🚫 在iframe中，跳过执行 - URL: ${window.location.href}`);
+    
     return;
   }
 
   // 防止重复执行的全局标记
   if ((window as any).__HTTP_CACHE_CONTENT_SCRIPT_LOADED__) {
-    console.debug(
-      `🚫 ContentScript已加载，跳过重复执行 - URL: ${window.location.href}`
-    );
+    
     return;
   }
 
-  console.debug(`✅ ContentScript开始执行 - URL: ${window.location.href}`);
+  
   (window as any).__HTTP_CACHE_CONTENT_SCRIPT_LOADED__ = true;
 
   // 内容脚本，在匹配的页面上运行
-  console.debug('HTTP缓存-ContentScript已加载');
+  
 
   // 优化：缓存存储数据，避免重复调用
   let cachedStorageData: any = null;
@@ -68,12 +66,12 @@ import {
   async function injectScriptToPage() {
     try {
       // 优化：并行获取存储数据和准备脚本
-      console.debug(Date.now(), 'injectScriptToPage');
+      
       const [storageData] = await Promise.all([getStorageData()]);
-      console.debug(Date.now(), 'injectScriptToPage_after_getStorageData');
+      
       const isPass = whetherToInject(storageData);
       if (!isPass) {
-        console.debug('🚫 未通过注入条件 - URL: ', window.location.href);
+        
         return;
       }
       customEventSend('content_to_ajaxHook', {
@@ -92,7 +90,7 @@ import {
     chromeSessionStorage.set({ curCacheData: [] });
     window.addEventListener('ajaxHook_to_content', async (event: any) => {
       const { type, message } = event.detail;
-      console.debug('收到事件:', type, message);
+      
 
       if (type === 'cache_hit') {
         hitCount++;
@@ -107,7 +105,7 @@ import {
         });
       } else if (type === 'currentRequest') {
         if (!sideBarReady) {
-          console.debug('content_receive_currentRequest', message);
+          
           curRequestData.push(message);
         } else {
           chrome.runtime.sendMessage({
@@ -123,7 +121,7 @@ import {
     // 处理来自popup的消息
     chrome.runtime.onMessage.addListener(
       (message: any, sender: any, sendResponse: any) => {
-        console.debug('Content收到事件:', message.type, message);
+        
         if (message.type === 'update_request_cache_data') {
           const { cacheKey, cacheResponse, cacheReqParams } = message.data;
           const requestCacheData = localStorage.getItem('request_cache_data');
@@ -138,10 +136,7 @@ import {
                 'request_cache_data',
                 JSON.stringify(requestCacheDataObj)
               );
-              console.debug(
-                'requestCacheDataObj after save',
-                requestCacheDataObj
-              );
+              
             } catch (error) {
               console.error('更新缓存数据失败:', error);
             }
@@ -154,19 +149,33 @@ import {
               data: curRequestData,
             },
             (response) => {
-              console.debug('batch_request_data response:', response);
+              
               curRequestData = [];
             }
           );
-          console.debug('content_receive_sidebar_ready', curRequestData);
+          
         } else if (message.type === 'mockList_change') {
           // 将最新的 mockList 转发给 ajaxHook 脚本
           customEventSend('content_to_ajaxHook', {
             type: 'mockList_change',
-            message: { mockList: message.data || [] },
+            message: message.data || []
           });
-        } else if (message.type === 'copy_json') {
-          console.debug('copy_json', message.data);
+        } else if (message.type === 'mockEnabled_change') {
+          customEventSend('content_to_ajaxHook', {
+            type: 'mockEnabled_change',
+            message: message.data
+          });
+        } else if (message.type === 'monitorEnabled_change') {
+          customEventSend('content_to_ajaxHook', {
+            type: 'monitorEnabled_change',
+            message: message.data
+          });
+        } else if (message.type === 'disasterRecoveryProcessing_change') {
+          customEventSend('content_to_ajaxHook', {
+            type: 'disasterRecoveryProcessing_change',
+            message: message.data
+          });
+        }  else if (message.type === 'copy_json') {
           navigator.clipboard.writeText(message.data);
           sendResponse({ success: true });
         }

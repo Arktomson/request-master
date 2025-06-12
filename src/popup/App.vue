@@ -8,15 +8,21 @@
       <div class="header-right">
         <div class="switch-item">
           <span>监控开关</span>
-          <el-switch v-model="isMonitorEnabled" @change="(enabled: boolean) => {
+          <el-switch
+            v-model="isMonitorEnabled"
+            @change="(enabled: boolean) => {
             chromeLocalStorage.set({ monitorEnabled: enabled })
-          }" />
+          }"
+          />
         </div>
         <div class="switch-item">
           <span>容灾开关</span>
-          <el-switch v-model="isActive" @change="(enabled: boolean) => {
+          <el-switch
+            v-model="isDisasterRecoveryProcessing"
+            @change="(enabled: boolean) => {
             chromeLocalStorage.set({ disasterRecoveryProcessing: enabled })
-          }" />
+          }"
+          />
         </div>
       </div>
     </header>
@@ -39,16 +45,16 @@
                 class="method-badge"
                 :class="getMethodClass(item?.method || 'GET')"
               >
-                {{ item?.method || "GET" }}
+                {{ item?.method || 'GET' }}
               </span>
               <el-tooltip :content="item?.url || '未知URL'" placement="top">
                 <span class="url-text" :title="item?.url || '未知URL'">
-                  {{ item?.url || "未知URL" }}
+                  {{ item?.url || '未知URL' }}
                 </span>
               </el-tooltip>
 
               <span class="expand-icon">{{
-                expandedItems.includes(index) ? "▼" : "▶"
+                expandedItems.includes(index) ? '▼' : '▶'
               }}</span>
             </div>
             <div v-if="expandedItems.includes(index)" class="cache-detail">
@@ -59,38 +65,42 @@
               <div class="response-section" v-if="item?.response">
                 <div class="response-header">
                   <h3>响应数据</h3>
-                  <button 
-                    class="edit-btn" 
+                  <button
+                    class="edit-btn"
                     @click.stop="toggleEdit(index)"
-                    :class="{ 'active': editingIndex === index }"
+                    :class="{ active: editingIndex === index }"
                   >
                     {{ editingIndex === index ? '取消' : '编辑' }}
                   </button>
                 </div>
-                
+
                 <!-- 展示模式 -->
-                <pre v-if="editingIndex !== index">{{ formatJson(item?.response) }}</pre>
-                
+                <pre v-if="editingIndex !== index">{{
+                  formatJson(item?.response)
+                }}</pre>
+
                 <!-- 编辑模式 -->
                 <div v-else class="editor-container">
-                  <textarea 
-                    v-model="editingContent" 
+                  <textarea
+                    v-model="editingContent"
                     class="json-editor"
-                    :class="{ 'error': jsonError }"
+                    :class="{ error: jsonError }"
                     @input="validateJsonInput"
                   ></textarea>
                   <div class="editor-footer">
-                    <span class="error-message" v-if="jsonError">{{ jsonError }}</span>
+                    <span class="error-message" v-if="jsonError">{{
+                      jsonError
+                    }}</span>
                     <div class="editor-actions">
-                      <button 
-                        class="format-btn" 
+                      <button
+                        class="format-btn"
                         @click.stop="formatJsonContent()"
                         title="格式化JSON"
                       >
                         格式化
                       </button>
-                      <button 
-                        class="save-btn" 
+                      <button
+                        class="save-btn"
                         @click.stop="saveEdit(index)"
                         :disabled="!!jsonError"
                       >
@@ -112,24 +122,27 @@
 </template>
 
 <script setup lang="ts">
-import { chromeLocalStorage, chromeSessionStorage, messageToContent } from "@/utils/index";
-import { ref, onMounted, nextTick, toRaw } from "vue";
-import { ElMessage } from "element-plus";
+import {
+  chromeLocalStorage,
+  chromeSessionStorage,
+  messageToContent,
+} from '@/utils/index';
+import { ref, onMounted, nextTick, toRaw, watch } from 'vue';
+import { ElMessage } from 'element-plus';
 
-
-const isActive = ref(false);
+const isDisasterRecoveryProcessing = ref(false);
 const isMonitorEnabled = ref(false);
 const curCacheData = ref<any[]>([]);
 const expandedItems = ref<number[]>([]);
 const editingIndex = ref<number | null>(null);
-const editingContent = ref<string>("");
+const editingContent = ref<string>('');
 const jsonError = ref<string | null>(null);
 
 // 切换展开状态
 const toggleItem = (index: number) => {
   // 如果正在编辑，不允许折叠
   if (editingIndex.value === index) return;
-  
+
   const position = expandedItems.value.indexOf(index);
   if (position > -1) {
     expandedItems.value.splice(position, 1);
@@ -138,12 +151,25 @@ const toggleItem = (index: number) => {
   }
 };
 
+watch(isDisasterRecoveryProcessing, (newVal) => {
+  messageToContent({
+    type: 'disasterRecoveryProcessing_change',
+    data: newVal,
+  }, () => {});
+});
+watch(isMonitorEnabled, (newVal) => {
+  messageToContent({
+    type: 'monitorEnabled_change',
+    data: newVal,
+  }, () => {});
+});
+
 // 格式化JSON数据
 const formatJson = (data: any) => {
   try {
     return JSON.stringify(data, null, 2);
   } catch (e) {
-    return String(data || "");
+    return String(data || '');
   }
 };
 
@@ -152,14 +178,14 @@ const toggleEdit = (index: number) => {
   if (editingIndex.value === index) {
     // 取消编辑
     editingIndex.value = null;
-    editingContent.value = "";
+    editingContent.value = '';
     jsonError.value = null;
   } else {
     // 开始编辑
     editingIndex.value = index;
     editingContent.value = formatJson(curCacheData.value[index]?.response);
     jsonError.value = null;
-    
+
     // 确保项目已展开
     if (!expandedItems.value.includes(index)) {
       expandedItems.value.push(index);
@@ -191,7 +217,7 @@ const validateJson = (jsonString: string): boolean => {
         jsonError.value = `JSON格式错误: ${errorMessage}`;
       }
     } else {
-      jsonError.value = "JSON格式无效";
+      jsonError.value = 'JSON格式无效';
     }
     return false;
   }
@@ -213,17 +239,17 @@ const formatJsonContent = () => {
       const fixedJson = editingContent.value
         .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":') // 修复键名引号
         .replace(/'/g, '"'); // 将单引号替换为双引号
-      
+
       // 尝试解析修复后的内容
       JSON.parse(fixedJson);
-      
+
       // 如果成功，更新内容并格式化
       editingContent.value = JSON.stringify(JSON.parse(fixedJson), null, 2);
       jsonError.value = null;
-      ElMessage.success("JSON已自动修复格式");
+      ElMessage.success('JSON已自动修复格式');
     } catch (fixError) {
       // 如果自动修复失败，提示用户
-      ElMessage.error("无法自动修复JSON格式");
+      ElMessage.error('无法自动修复JSON格式');
     }
   }
 };
@@ -236,69 +262,67 @@ const saveEdit = async (index: number) => {
       const updatedCacheData = [...curCacheData.value];
       updatedCacheData[index] = {
         ...updatedCacheData[index],
-        response: JSON.parse(editingContent.value)
+        response: JSON.parse(editingContent.value),
       };
-      
-      console.debug("updatedCacheData", updatedCacheData)
+
       // 更新本地状态
       curCacheData.value = updatedCacheData;
-      
-      console.debug("editingContent.value", editingContent.value)
-      const val = JSON.parse(editingContent.value)
-      console.debug("val", val)
+
+      const val = JSON.parse(editingContent.value);
+
       // 更新存储中的数据
       await chromeSessionStorage.set({ curCacheData: toRaw(updatedCacheData) });
-      messageToContent({
-        type: 'update_request_cache_data',
-        data: {
-          cacheKey: updatedCacheData[index].cacheKey,
-          cacheResponse: val,
-          cacheReqParams: updatedCacheData[index].params,
-        }
-      },(response: any) => {
-        console.debug("收到事件", response)
-      });
+      messageToContent(
+        {
+          type: 'update_request_cache_data',
+          data: {
+            cacheKey: updatedCacheData[index].cacheKey,
+            cacheResponse: val,
+            cacheReqParams: updatedCacheData[index].params,
+          },
+        },
+        (response: any) => {}
+      );
 
       editingIndex.value = null;
-      editingContent.value = "";
-      
-      ElMessage.success("JSON数据已更新");
+      editingContent.value = '';
+
+      ElMessage.success('JSON数据已更新');
     } catch (error) {
-      ElMessage.error("保存失败，请重试");
-      console.error("保存编辑失败:", error);
+      ElMessage.error('保存失败，请重试');
+      console.error('保存编辑失败:', error);
     }
   }
 };
 
 // 根据请求方法获取样式
 const getMethodClass = (method: string) => {
-  const methodLower = (method || "").toLowerCase();
-  if (methodLower === "get") return "method-get";
-  if (methodLower === "post") return "method-post";
-  if (methodLower === "put") return "method-put";
-  if (methodLower === "delete") return "method-delete";
-  return "method-other";
+  const methodLower = (method || '').toLowerCase();
+  if (methodLower === 'get') return 'method-get';
+  if (methodLower === 'post') return 'method-post';
+  if (methodLower === 'put') return 'method-put';
+  if (methodLower === 'delete') return 'method-delete';
+  return 'method-other';
 };
 
 onMounted(async () => {
   // 获取当前激活状态
-  const { disasterRecoveryProcessing, monitorEnabled } = await chromeLocalStorage.getAll();
-  isActive.value = disasterRecoveryProcessing;
+  const { disasterRecoveryProcessing, monitorEnabled } =
+    await chromeLocalStorage.getAll();
+  isDisasterRecoveryProcessing.value = disasterRecoveryProcessing;
   isMonitorEnabled.value = monitorEnabled;
 
   // 获取缓存数据
-  const data = await chromeSessionStorage.get("curCacheData");
+  const data = await chromeSessionStorage.get('curCacheData');
   if (data) curCacheData.value = Array.isArray(data) ? data : [data];
 
   // 监听缓存数据变化
   chromeSessionStorage.onChange((changes: any) => {
-    console.debug("变化", changes);
     if (changes.curCacheData && changes.curCacheData.newValue) {
       curCacheData.value = changes.curCacheData.newValue;
     }
-  }, "curCacheData");
+  }, 'curCacheData');
 });
-
 </script>
 
 <style scoped lang="scss">
@@ -307,7 +331,7 @@ onMounted(async () => {
   min-height: 300px;
   background-color: #f9fafb;
   color: #1f2937;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -559,7 +583,7 @@ onMounted(async () => {
       margin-bottom: 8px;
     }
   }
-  
+
   .edit-btn {
     background-color: #4b5563;
     color: white;
@@ -569,21 +593,21 @@ onMounted(async () => {
     font-size: 12px;
     cursor: pointer;
     transition: background-color 0.2s;
-    
+
     &:hover {
       background-color: #374151;
     }
-    
+
     &.active {
       background-color: #ef4444;
     }
   }
-  
+
   .editor-container {
     display: flex;
     flex-direction: column;
   }
-  
+
   .json-editor {
     width: 95%;
     min-height: 200px;
@@ -593,31 +617,31 @@ onMounted(async () => {
     border: 1px solid #e5e7eb;
     background-color: #f9fafb;
     resize: vertical;
-    
+
     &.error {
       border-color: #ef4444;
       background-color: #fee2e2;
     }
   }
-  
+
   .editor-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-top: 8px;
   }
-  
+
   .error-message {
     color: #ef4444;
     font-size: 12px;
     flex: 1;
   }
-  
+
   .editor-actions {
     display: flex;
     gap: 8px;
   }
-  
+
   .format-btn {
     background-color: #6366f1;
     color: white;
@@ -627,12 +651,12 @@ onMounted(async () => {
     font-size: 12px;
     cursor: pointer;
     transition: background-color 0.2s;
-    
+
     &:hover {
       background-color: #4f46e5;
     }
   }
-  
+
   .save-btn {
     background-color: #10b981;
     color: white;
@@ -642,11 +666,11 @@ onMounted(async () => {
     font-size: 12px;
     cursor: pointer;
     transition: background-color 0.2s;
-    
+
     &:hover:not(:disabled) {
       background-color: #059669;
     }
-    
+
     &:disabled {
       background-color: #9ca3af;
       cursor: not-allowed;

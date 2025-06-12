@@ -113,6 +113,13 @@ export default defineConfig(({ mode }) => {
       }),
       ...(isProd && {
         sourcemap: false, // 生产环境关闭
+        minify: 'terser', // 使用terser进行压缩
+        terserOptions: {
+          compress: {
+            drop_console: true, // 移除console
+            drop_debugger: true, // 移除debugger
+          },
+        },
       }),
     },
     // 根据环境设置不同的变量

@@ -492,15 +492,15 @@ const initLayout = () => {
 const setupMessageListener = () => {
   // 直接监听background发送的消息
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.debug('Sidebar收到消息:', message.type, message);
+    
 
     if (message.type === "new_request_data") {
       // 直接添加新的请求数据
       requests.value.push(message.data);
-      console.debug('添加新请求数据:', message.data);
+      
     } else if (message.type === "batch_request_data") {
       requests.value = message.data;
-      console.debug('添加批量请求数据:', message.data);
+      
     }
   });
 };
@@ -516,7 +516,6 @@ const notifyMockList = (val: any) => {
 watch(
   mockList,
   (val) => {
-    console.debug('mockList', val);
     // chromeLocalStorage.set({ mockList: val });
     notifyMockList(val);
   },
@@ -546,7 +545,7 @@ onMounted(async () => {
   messageToContent({
     type: "sidebar_ready"
   },(response) => {
-    console.debug("已通知content script sidebar准备就绪", response);
+    
   });
 });
 
