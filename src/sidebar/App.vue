@@ -38,6 +38,7 @@
           @delete-mock="deleteMock"
           @add-mock="showAddMockDialog"
           @mock-toggle="handleMockToggle"
+          @clear-all-mocks="handleClearAllMocks"
         />
       </div>
 
@@ -369,12 +370,27 @@ const deleteMock = async (cacheKey: string) => {
   mockList.value = newMockList;
   ElMessage.success('删除成功');
 };
+
 const handleMockToggle = (enabled: boolean) => {
   // Mock总开关的处理逻辑已经在MockSection组件内部处理
   // 这里可以添加其他需要的逻辑，比如通知content script等
-  
 };
 
+const handleClearAllMocks = async () => {
+  // 清空选中状态和显示内容
+  selectedMockIndex.value = -1;
+  jsonContent.value = '';
+  payloadContent.value = '';
+  headersContent.value = '';
+  
+  // 清空 mock 列表
+  mockList.value = [];
+  
+  // 清空存储
+  await chromeLocalStorage.set({ mockList: [] });
+  
+  ElMessage.success('已清除所有Mock数据');
+};
 
 const handleClearRequests = () => {
   requests.value = [];

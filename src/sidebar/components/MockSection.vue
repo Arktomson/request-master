@@ -11,6 +11,9 @@
         <el-button type="primary" size="small" @click="handleAddMock">
           添加Mock
         </el-button>
+        <el-button type="danger" size="small" @click="handleClearAllMocks">
+          清除所有
+        </el-button>
       </div>
     </div>
 
@@ -92,6 +95,7 @@ const emit = defineEmits<{
   (e: 'delete-mock', cacheKey: string): void;
   (e: 'add-mock'): void;
   (e: 'mock-toggle', enabled: boolean): void;
+  (e: 'clear-all-mocks'): void;
 }>();
 
 // DOM引用
@@ -127,6 +131,25 @@ const handleAddMock = () => {
 const handleMockToggle = (enabled: boolean) => {
   emit('mock-toggle', enabled);
   ElMessage.success(enabled ? 'Mock已开启' : 'Mock已关闭');
+};
+
+const handleClearAllMocks = () => {
+  ElMessageBox.confirm(
+    '确定要清除所有Mock数据吗？此操作不可恢复。',
+    '警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(() => {
+      emit('clear-all-mocks');
+      ElMessage.success('已清除所有Mock数据');
+    })
+    .catch(() => {
+      // 用户取消操作，不做任何处理
+    });
 };
 
 // 初始化Mock开关状态
