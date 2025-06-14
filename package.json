@@ -4,12 +4,17 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite build --mode development --outDir dist",
-    "predev": "vite build --mode development --config vite.mainworld.config.ts --outDir dist",
-    "dev:watch": "nodemon --watch src --ext vue,ts,js,json --exec \"npm run dev\"",
-    "prebuild": "vite build --mode production --config vite.mainworld.config.ts --outDir dist-prod",
-    "build": "vite build --mode production --outDir dist-prod",
-    "preview": "vite preview"
+    "dev": "rsbuild build --mode development",
+    "dev:watch": "rsbuild build --mode development --watch",
+    "build": "rsbuild build --mode production",
+    "preview": "rsbuild preview",
+    "serve": "rsbuild dev",
+    "legacy:dev": "vite build --mode development --outDir dist",
+    "legacy:predev": "vite build --mode development --config vite.mainworld.config.ts --outDir dist",
+    "legacy:dev:watch": "nodemon --watch src --ext vue,ts,js,json --exec \"npm run dev\"",
+    "legacy:prebuild": "vite build --mode production --config vite.mainworld.config.ts --outDir dist-prod",
+    "legacy:build": "vite build --mode production --outDir dist-prod",
+    "legacy:preview": "vite preview"
   },
   "dependencies": {
     "@json-editor/json-editor": "^2.15.2",
@@ -29,18 +34,29 @@
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0-beta.21",
     "@originjs/vite-plugin-commonjs": "^1.0.3",
+    "@rsbuild/core": "^1.3.22",
+    "@rsbuild/plugin-sass": "^1.3.2",
+    "@rsbuild/plugin-type-check": "^1.2.3",
+    "@rsbuild/plugin-vue": "^1.0.7",
+    "@rspack/cli": "^1.3.15",
+    "@rspack/core": "^1.3.15",
+    "@rspack/plugin-html": "^0.5.8",
     "@types/chrome": "^0.0.258",
     "@types/hash-sum": "^1.0.2",
     "@types/node": "^20.11.19",
     "@vitejs/plugin-vue": "^5.0.3",
+    "html-rspack-plugin": "^6.0.5",
     "nodemon": "^2.0.22",
     "sass": "^1.88.0",
     "sass-loader": "^16.0.5",
     "terser": "^5.39.0",
+    "terser-webpack-plugin": "^5.3.14",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
     "unplugin-element-plus": "^0.10.0",
     "vite": "^5.1.0",
-    "vue-tsc": "^2.2.4"
+    "vue-loader": "^17.4.2",
+    "vue-tsc": "^2.2.4",
+    "webpack": "^5.99.9"
   }
 }
