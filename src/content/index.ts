@@ -3,6 +3,7 @@ import {
   chromeSessionStorage,
   customEventSend,
 } from '@/utils';
+import dayjs from 'dayjs';
 
 // 立即执行函数，用于防止重复执行
 (function () {
@@ -25,15 +26,8 @@ import {
   
 
   // 优化：缓存存储数据，避免重复调用
-  let cachedStorageData: any = null;
   let curRequestData: any = [];
   let sideBarReady = false;
-  async function getStorageData() {
-    if (!cachedStorageData) {
-      cachedStorageData = await chromeLocalStorage.getAll();
-    }
-    return cachedStorageData;
-  }
 
   function whetherToInject(storageData: any) {
     const curOrigin = window.location.origin;
@@ -65,19 +59,18 @@ import {
 
   async function injectScriptToPage() {
     try {
-      // 优化：并行获取存储数据和准备脚本
-      
-      const [storageData] = await Promise.all([getStorageData()]);
-      
-      const isPass = whetherToInject(storageData);
-      if (!isPass) {
+      // chrome.storage.local.get(null, (res) => {
+      //   console.log('开始发送数据')
+      //   const isPass = whetherToInject(res);
+      //   if (!isPass) {
+      //     return;
+      //   }
+      //   customEventSend('content_to_ajaxHook', {
+      //     type: 'init',
+      //     message: res,
+      //   });
         
-        return;
-      }
-      customEventSend('content_to_ajaxHook', {
-        type: 'init',
-        message: storageData,
-      });
+      // });
       handleEvent();
     } catch (error) {
       console.error('注入脚本加载失败:', error);
@@ -88,6 +81,7 @@ import {
     let hitCount = 0;
 
     chromeSessionStorage.set({ curCacheData: [] });
+    console.log('准备监听',dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'))
     window.addEventListener('ajaxHook_to_content', async (event: any) => {
       const { type, message } = event.detail;
       

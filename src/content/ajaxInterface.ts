@@ -11,7 +11,7 @@ export const ajaxInterface = function () {
   function modifyJsonResponse(req, res, modifier) {
     try {
       if (req.type === 'fetch') {
-        console.debug(res.json, 'res.json');
+        
         const result = modifier(res.json);
         res.json = result;
         return res;
@@ -22,7 +22,7 @@ export const ajaxInterface = function () {
         // 应用修改函数
         const modified = modifier(tranferJson);
 
-        console.debug('modifyJsonResponse', modified);
+        
         // 将修改后的对象重新序列化为字符串
         res.responseText = JSON.stringify(modified);
         res.response = JSON.stringify(modified);
@@ -103,6 +103,9 @@ export const ajaxInterface = function () {
   }
   function parseHeaders(obj) {
     const headers = {};
+    
+    if (!obj) return headers;
+    
     switch (getType(obj)) {
       case '[object String]':
         for (const line of obj.trim().split(/[\r\n]+/)) {
@@ -114,14 +117,19 @@ export const ajaxInterface = function () {
         }
         break;
       case '[object Headers]':
-        for (const [key, val] of obj) {
-          headers[key] = val;
+        // 使用entries()确保获取所有headers
+        for (const [key, val] of obj.entries()) {
+          const lkey = key.toLowerCase();
+          headers[lkey] = lkey in headers ? `${headers[lkey]}, ${val}` : val;
         }
         break;
       case '[object Object]':
-        return {
-          ...obj,
-        };
+        // 确保key统一为小写
+        for (const [key, val] of Object.entries(obj)) {
+          const lkey = key.toLowerCase();
+          headers[lkey] = lkey in headers ? `${headers[lkey]}, ${val}` : val;
+        }
+        break;
     }
     return headers;
   }
@@ -477,14 +485,31 @@ export const ajaxInterface = function () {
     if (!url) return winAh.realFetch.call(win, url, options);
     return new Promise(async (resolve, reject) => {
       const init = {};
-      // if (getType(url) === "[object Request]") {
-      //   for (const prop of fetchInitProps) init[prop] = url[prop];
-      //   if (url.body) init.body = await url.arrayBuffer();
-      //   url = url.url;
-      // }
+      // 正确处理Request对象，手动提取所有属性
       if (url instanceof Request) {
         const reqClone = url.clone();
-        Object.assign(init, reqClone); // 利用浏览器的 Request→init 结构化拷贝
+        
+        // 手动提取Request对象的所有属性
+        for (const prop of fetchInitProps) {
+          if (prop === 'headers') {
+            // 特殊处理headers - 手动提取所有header
+            const requestHeaders = {};
+            console.debug('提取Request headers:');
+            // 遍历所有headers
+            for (const [key, value] of reqClone.headers.entries()) {
+              console.debug(`  ${key}: ${value}`);
+              requestHeaders[key] = value;
+            }
+            init.headers = requestHeaders;
+            console.debug('最终提取的headers:', requestHeaders);
+          } else if (prop === 'body' && reqClone.body) {
+            // 特殊处理body
+            init.body = await reqClone.arrayBuffer();
+          } else if (reqClone[prop] !== undefined) {
+            init[prop] = reqClone[prop];
+          }
+        }
+        
         url = reqClone.url;
       }
       url = url.toString();
@@ -599,7 +624,7 @@ export const ajaxInterface = function () {
                   console.error('读取错误响应失败:', error);
                 }
               } else {
-                console.debug('错误响应非JSON格式，不进行处理:', contentType);
+                
               }
             }
 

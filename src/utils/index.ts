@@ -22,6 +22,7 @@ export function normalizeUrl(url: string) {
       'ts',
       'v',
       '_',
+      'ts',
     ];
 
     // 移除时间戳参数
@@ -76,11 +77,11 @@ export function generateCacheKeyFromQueryString(
 }
 export function messageToContent(
   data: Record<string, any>,
-  cb: (response: any) => void
+  cb?: (response: any) => void
 ) {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     if (tabs[0]?.id) {
-      chrome.tabs.sendMessage(tabs[0].id, data, cb);
+      chrome.tabs.sendMessage(tabs[0].id, data, cb || (() => {}));
     }
   });
 }
@@ -92,5 +93,14 @@ export function customEventSend(eventName: string, data: Record<string, any>) {
       bubbles: false,
     })
   );
+}
+export function getUrlPath(url: string) {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.pathname + urlObj.search + urlObj.hash;
+  } catch {
+    // 如果URL格式不正确，返回原始URL
+    return url;
+  }
 }
 export { default as RequestCacheDB } from './requestDB';

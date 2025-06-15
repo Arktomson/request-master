@@ -44,7 +44,7 @@
               placement="top"
               :show-after="500"
             >
-              <span>{{ item.url }}</span>
+              <span>{{ getUrlPath(item.url) }}</span>
             </el-tooltip>
           </div>
           <div class="method-column">
@@ -79,7 +79,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watchEffect, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { chromeLocalStorage, customEventSend, messageToContent } from '@/utils';
+import { chromeLocalStorage, customEventSend, getUrlPath, messageToContent } from '@/utils';
 import { Edit, Delete } from '@element-plus/icons-vue';
 
 // 接收父组件传递的属性

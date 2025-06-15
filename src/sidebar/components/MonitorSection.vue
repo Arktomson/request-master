@@ -33,25 +33,25 @@
 
     <!-- 请求列表 -->
     <div class="request-list">
-      <div 
-        v-for="(item, index) in filteredRequests" 
-        :key="index" 
+      <div
+        v-for="(item, index) in filteredRequests"
+        :key="index"
         class="request-item"
         :class="{
-          'selected': props.selectedRequestIndex === item.originalIndex,
-          'is-mock': item.req.isMock === true
+          selected: props.selectedRequestIndex === item.originalIndex,
+          'is-mock': item.req.isMock === true,
         }"
         @click="selectRequest(item.originalIndex)"
         @dblclick="emit('add-to-mock', item.originalIndex)"
       >
         <div class="url-column text-ellipsis">
-          <el-tooltip 
-            effect="dark" 
-            :content="item.req.url" 
+          <el-tooltip
+            effect="dark"
+            :content="item.req.url"
             placement="top"
             :show-after="300"
           >
-            <span>{{ item.req.url }}</span>
+            <span>{{ getUrlPath(item.req.url) }}</span>
           </el-tooltip>
         </div>
         <div class="time-column">{{ formatTime(item.req.time) }}</div>
@@ -79,6 +79,7 @@
 import { ref, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Delete } from '@element-plus/icons-vue';
+import { getUrlPath } from '@/utils';
 
 // 接收父组件传递的属性
 const props = defineProps<{
@@ -98,11 +99,14 @@ const emit = defineEmits<{
 // 搜索
 const searchQuery = ref('');
 
-interface RequestWithIndex { req: any; originalIndex: number }
+interface RequestWithIndex {
+  req: any;
+  originalIndex: number;
+}
 
 const filteredRequests = computed<RequestWithIndex[]>(() => {
   const q = searchQuery.value.toLowerCase();
-  return props.requests.flatMap((req, i) => {
+  return props.requests.flatMap((req: any, i: number) => {
     if (!q || req.url?.toLowerCase().includes(q)) {
       return { req, originalIndex: i } as RequestWithIndex;
     }
@@ -116,7 +120,10 @@ const monitorSectionRef = ref<HTMLElement | null>(null);
 // 方法
 const formatTime = (timestamp: number) => {
   const date = new Date(timestamp);
-  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+  return `${date.getHours().toString().padStart(2, '0')}:${date
+    .getMinutes()
+    .toString()
+    .padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
 };
 
 const getMethodType = (method: string) => {
@@ -139,7 +146,7 @@ const deleteRequest = (index: number) => {
 
 // 暴露给父组件的方法和属性
 defineExpose({
-  monitorSectionRef
+  monitorSectionRef,
 });
 </script>
 
@@ -148,30 +155,30 @@ defineExpose({
   height: 50%;
   display: flex;
   flex-direction: column;
-  
+
   .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
     border-bottom: 1px solid #ebeef5;
-    
+
     .section-title {
       font-weight: 600;
       font-size: 14px;
     }
-    
+
     .monitor-actions {
       display: flex;
       gap: 8px;
     }
   }
-  
+
   .request-search {
     padding: 6px 12px;
     border-bottom: 1px solid #ebeef5;
   }
-  
+
   .request-header {
     display: flex;
     padding: 8px 12px;
@@ -180,51 +187,51 @@ defineExpose({
     font-size: 12px;
     color: #606266;
     border-bottom: 1px solid #ebeef5;
-    
+
     .url-column {
       flex: 1;
     }
-    
+
     .time-column {
       width: 70px;
       text-align: center;
     }
-    
+
     .method-column {
       width: 70px;
       text-align: center;
     }
-    
+
     .action-column {
       width: 60px;
       text-align: center;
     }
   }
-  
+
   .request-list {
     flex: 1;
     overflow-y: auto;
-    
+
     .request-item {
       display: flex;
       align-items: center;
       padding: 4px 6px;
       border-bottom: 1px solid #ebeef5;
       cursor: pointer;
-      
+
       &:hover {
         background-color: #f5f7fa;
       }
-      
+
       &.selected {
         background-color: #ecf5ff;
       }
-      
+
       &.is-mock {
         background-color: #e8f5e8;
         border-left: 3px solid #67c23a;
         position: relative;
-        
+
         &::before {
           content: 'MOCK';
           position: absolute;
@@ -237,29 +244,29 @@ defineExpose({
           border-radius: 2px;
           font-weight: bold;
         }
-        
+
         &.selected {
           background-color: #e1f3d8;
         }
       }
-      
+
       .url-column {
         flex: 1;
         font-size: 12px;
       }
-      
+
       .time-column {
         width: 70px;
         text-align: center;
         font-size: 12px;
         color: #909399;
       }
-      
+
       .method-column {
         width: 70px;
         text-align: center;
       }
-      
+
       .action-column {
         width: 60px;
         text-align: center;
@@ -276,4 +283,4 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
 }
-</style> 
+</style>

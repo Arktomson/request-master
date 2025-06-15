@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => {
       }),
       ElementPlus(),
       viteCommonjs(),
-      appendMainWorld(),
+      // appendMainWorld(),
     ],
     resolve: {
       alias: {

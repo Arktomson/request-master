@@ -4,61 +4,92 @@ import {
   messageToContent,
 } from '@/utils';
 import { Setting } from '@/types';
-
+import dayjs from 'dayjs';
+import { isNil } from 'lodash-es';
 async function initConfig() {
-  // 配置为空，进行初始化
-  const [result, _] = await Promise.all([
+  const [stored, _] = await Promise.all([
     chromeLocalStorage.getAll(),
     chrome.storage.session.setAccessLevel({
-      accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS', // 让“不受信”场景（content script）也能用
+      accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS',
     }),
   ]);
   const defaultSettings: Setting = {
-    // 灾难恢复处理
     disasterRecoveryProcessing: true,
-    // 是否启用劫持
     doYouWantToEnableHijacking: true,
     allowToInjectOrigin: [
-      {
-        type: 'regex',
-        domain: '(.*localhost.*|.*127.0.0.1.*)',
-      },
-      {
-        type: 'regex',
-        domain: '.*zcygov.*',
-      },
+      { type: 'regex', domain: '(.*localhost.*|.*127.0.0.1.*)' },
+      { type: 'regex', domain: '.*zcygov.*' },
     ],
-
     sidebarIfCacheState: false,
     sideBarLastVisible: false,
     mockList: [],
     mockEnabled: false,
     monitorEnabled: false,
     sidebarWidth: 900,
-    // 其他默认配置项...
   };
-  Object.keys(defaultSettings).forEach(async (key) => {
-    if (result[key] === undefined || result[key] === null) {
-      chromeLocalStorage.set({ [key]: defaultSettings[key] });
+  for (const [key, val] of Object.entries(defaultSettings)) {
+    if (isNil(stored[key])) {
+      await chromeLocalStorage.set({ [key]: val });
     }
-  });
-  
-  
+  }
 }
-async function initEvent() {
+const SCRIPT_ID = 'ajax-hook';
+async function isRegistered() {
+  const list = await chrome.scripting.getRegisteredContentScripts({
+    ids: [SCRIPT_ID],
+  });
+  return list.length > 0;
+}
+function shouldInject(cfg: Setting) {
+  return Boolean(cfg.monitorEnabled);
+}
+async function injectCfgToPage(tabId: number, frameId = 0) {
+  console.log('准备注入配置', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
+  const cfg = await chromeLocalStorage.getAll();
+  await chrome.scripting.executeScript({
+    target: { tabId, frameIds: [frameId] },
+    world: 'MAIN',
+    func: (c) => {
+      console.log('执行配置', new Date().toISOString());
+      (window as any).__HOOK_CFG = c;
+    },
+    args: [cfg],
+    injectImmediately: true,
+  });
+}
+async function ensureScripts() {
+  const cfg = await chromeLocalStorage.getAll();
+  const wanted = shouldInject(cfg as Setting);
+  const already = await isRegistered();
+  console.log(wanted, already, 'wanted,already');
+  if (wanted && !already) {
+    await chrome.scripting.registerContentScripts([
+      {
+        id: SCRIPT_ID,
+        js: ['ajaxHook.js'],
+        matches: ['<all_urls>'],
+        runAt: 'document_start',
+        world: 'MAIN',
+        allFrames: false,
+        persistAcrossSessions: true,
+      },
+    ]);
+  } else if (!wanted && already) {
+    await chrome.scripting.unregisterContentScripts({ ids: [SCRIPT_ID] });
+  }
+}
+function wireRuntimeMessaging() {
   chrome.runtime.onMessage.addListener(
     async (message, sender, sendResponse) => {
-      
-
       try {
         if (message.type === 'update_badge') {
           const { count, oneRequestData } = message.data;
           await Promise.all([
             chrome.action.setBadgeText({
-              text: count.toString(),
+              text: String(count),
               tabId: sender.tab?.id,
             }),
-            await chrome.action.setBadgeBackgroundColor({
+            chrome.action.setBadgeBackgroundColor({
               color: 'purple',
               tabId: sender.tab?.id,
             }),
@@ -69,63 +100,52 @@ async function initEvent() {
           await chromeSessionStorage.set({ curCacheData });
           sendResponse({ success: true });
         } else if (message.type === 'sidebar_state_changed') {
-          
           sendResponse({ success: true });
         } else {
           sendResponse({ success: false, error: 'Unknown message type' });
         }
-      } catch (error) {
-        console.error('Background处理消息出错:', error);
-        sendResponse({ success: false, error: String(error) });
+      } catch (e) {
+        console.error('Background message error', e);
+        sendResponse({ success: false, error: String(e) });
       }
-
-      return true; // 表示异步响应
     }
   );
-
-  chrome.commands.onCommand.addListener(async (command) => {
-    if (command === 'open_sidebar') {
-      
-      // 切换iframe侧边栏
-      messageToContent(
-        {
-          type: 'toggle_sidebar',
-        },
-        (response) => {
-          
-        }
-      );
+  chrome.commands.onCommand.addListener(async (cmd) => {
+    if (cmd === 'open_sidebar') {
+      messageToContent({ type: 'toggle_sidebar' });
     }
   });
 }
-
-async function main() {
-  await initEvent();
+function wireStorageWatcher() {
+  chromeLocalStorage.onChange(
+    async (changes, area) => {
+      if (
+        ['monitorEnabled', 'doYouWantToEnableHijacking'].some(
+          (k) => k in changes
+        )
+      ) {
+        await ensureScripts();
+      }
+    },
+    ['monitorEnabled', 'doYouWantToEnableHijacking']
+  );
 }
-
-main();
-
-// // 添加保持Service Worker活跃的连接监听器
-// chrome.runtime.onConnect.addListener((port) => {
-//   
-
-//   if (port.name === "keepAlive") {
-//     // @ts-ignore 添加timer属性到port对象
-//     port.timer = setTimeout(() => {
-//       
-//       port.disconnect();
-//       // @ts-ignore 清除计时器
-//       if (port.timer) {
-//         // @ts-ignore
-//         clearTimeout(port.timer);
-//       }
-//     }, 25000); // 25秒后断开，留5秒的安全时间
-//   }
-// });
+function wireNavigationInjection() {
+  chrome.webNavigation.onCommitted.addListener(async ({ tabId, frameId }) => {
+    console.log('有页面加载',dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
+    try {
+      await injectCfgToPage(tabId, frameId);
+    } catch (_) {}
+  });
+}
 
 chrome.runtime.onInstalled.addListener(async () => {
   await initConfig();
-  
+  await ensureScripts();
 });
-
-
+chrome.runtime.onStartup.addListener(async () => {
+  await ensureScripts();
+});
+wireRuntimeMessaging();
+wireStorageWatcher();
+wireNavigationInjection();
