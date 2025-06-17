@@ -34,7 +34,16 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import {
+  ElMessage,
+  ElForm,
+  ElFormItem,
+  ElInput,
+  ElSelect,
+  ElOption,
+  ElDialog,
+  ElButton,
+} from 'element-plus';
 
 // 定义Mock数据类型
 interface MockData {
@@ -63,21 +72,31 @@ const mockData = ref<MockData>({
   url: '',
   method: 'GET',
   enabled: true,
-  response: '{}'
+  response: '{}',
 });
 
 // 监听属性变化
-watch(() => props.modelValue, (newValue) => {
-  visible.value = newValue;
-});
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    visible.value = newValue;
+  }
+);
 
-watch(() => visible.value, (newValue) => {
-  emit('update:modelValue', newValue);
-});
+watch(
+  () => visible.value,
+  (newValue) => {
+    emit('update:modelValue', newValue);
+  }
+);
 
-watch(() => props.currentMock, (newValue) => {
-  mockData.value = { ...newValue };
-}, { deep: true });
+watch(
+  () => props.currentMock,
+  (newValue) => {
+    mockData.value = { ...newValue };
+  },
+  { deep: true }
+);
 
 // 方法
 const handleCancel = () => {
@@ -111,4 +130,4 @@ const handleSave = () => {
   emit('save', { ...mockData.value });
   visible.value = false;
 };
-</script> 
+</script>

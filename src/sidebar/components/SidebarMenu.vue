@@ -15,6 +15,7 @@
 
 <script setup lang="ts">
 import { Monitor, Setting } from '@element-plus/icons-vue';
+import { ElMenu, ElMenuItem, ElIcon } from 'element-plus';
 
 // 接收父组件传递的属性
 defineProps<{

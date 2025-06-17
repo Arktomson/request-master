@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElButton, ElTabs, ElTabPane } from 'element-plus';
 import { messageToContent } from '@/utils';
 import * as monaco from 'monaco-editor';
 

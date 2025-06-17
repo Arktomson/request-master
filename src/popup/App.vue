@@ -128,7 +128,7 @@ import {
   messageToContent,
 } from '@/utils/index';
 import { ref, onMounted, nextTick, toRaw, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElSwitch, ElTooltip } from 'element-plus';
 
 const isDisasterRecoveryProcessing = ref(false);
 const isMonitorEnabled = ref(false);
@@ -152,16 +152,22 @@ const toggleItem = (index: number) => {
 };
 
 watch(isDisasterRecoveryProcessing, (newVal) => {
-  messageToContent({
-    type: 'disasterRecoveryProcessing_change',
-    data: newVal,
-  }, () => {});
+  messageToContent(
+    {
+      type: 'disasterRecoveryProcessing_change',
+      data: newVal,
+    },
+    () => {}
+  );
 });
 watch(isMonitorEnabled, (newVal) => {
-  messageToContent({
-    type: 'monitorEnabled_change',
-    data: newVal,
-  }, () => {});
+  messageToContent(
+    {
+      type: 'monitorEnabled_change',
+      data: newVal,
+    },
+    () => {}
+  );
 });
 
 // 格式化JSON数据
