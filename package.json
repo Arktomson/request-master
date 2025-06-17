@@ -4,8 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "rsbuild build --watch --mode development",
-    "build": "rsbuild build --mode production",
+    "dev": "rsbuild dev",
+    "build": "rsbuild build",
     "preview": "rsbuild preview",
     "legacy:dev": "vite build --mode development --outDir dist",
     "prelegacy:dev": "vite build --mode development --config vite.mainworld.config.ts --outDir dist",

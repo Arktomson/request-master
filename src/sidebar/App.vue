@@ -11,7 +11,7 @@
       <!-- 中间主要内容区 -->
       <div class="content-area">
         <!-- 请求监测区域 -->
-        <MonitorSection 
+        <MonitorSection
           ref="monitorSectionRef"
           :requests="requests"
           :selectedRequestIndex="selectedRequestIndex"
@@ -23,10 +23,7 @@
         />
 
         <!-- 可拖拽分隔线(垂直方向) -->
-        <ResizeHandle 
-          direction="horizontal" 
-          @resize="handleHorizontalResize"
-        />
+        <ResizeHandle direction="horizontal" @resize="handleHorizontalResize" />
 
         <!-- Mock列表区域 -->
         <MockSection
@@ -53,7 +50,7 @@
         :headers="headersContent"
         :isSelected="!!selectedRequest"
         :isMockSelected="!!selectedMock"
-        @update:content="(val) => jsonContent = val"
+        @update:content="(val) => (jsonContent = val)"
         @save="saveJsonContent"
       />
     </div>
@@ -69,10 +66,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, toRaw, nextTick, watchEffect, watch } from 'vue';
+import {
+  ref,
+  computed,
+  onMounted,
+  onUnmounted,
+  toRaw,
+  nextTick,
+  watchEffect,
+  watch,
+  watchEffect,
+} from 'vue';
 import { ElMessage } from 'element-plus';
-import { chromeLocalStorage, chromeSessionStorage, messageToContent } from '@/utils';
-import stringify from 'json-stable-stringify'
+import {
+  chromeLocalStorage,
+  chromeSessionStorage,
+  messageToContent,
+} from '@/utils';
+import stringify from 'json-stable-stringify';
 // 导入组件
 import Header from './components/Header.vue';
 import SidebarMenu from './components/SidebarMenu.vue';
@@ -95,7 +106,7 @@ const currentMock = ref({
   url: '',
   method: 'GET',
   enabled: true,
-  response: '{}'
+  response: '{}',
 });
 
 const jsonContent = ref('');
@@ -109,16 +120,21 @@ const jsonViewerRef = ref();
 
 // 计算属性
 const selectedRequest = computed(() => {
-  if (selectedRequestIndex.value >= 0 && requests.value.length > selectedRequestIndex.value) {
+  if (
+    selectedRequestIndex.value >= 0 &&
+    requests.value.length > selectedRequestIndex.value
+  ) {
     return requests.value[selectedRequestIndex.value];
   }
   return null;
 });
 
 const selectedMock = computed(() => {
-  if (Array.isArray(mockList.value) && 
-      selectedMockIndex.value >= 0 && 
-      selectedMockIndex.value < mockList.value.length) {
+  if (
+    Array.isArray(mockList.value) &&
+    selectedMockIndex.value >= 0 &&
+    selectedMockIndex.value < mockList.value.length
+  ) {
     return mockList.value[selectedMockIndex.value];
   }
   return null;
@@ -138,15 +154,18 @@ const selectRequest = (index: number) => {
     headersContent.value = '';
     return;
   }
-  
+
   try {
     // 如果response已经是对象，直接格式化
     if (typeof response === 'object') {
       jsonContent.value = JSON.stringify(response, null, 2);
-    } 
+    }
   } catch (error) {
     // 如果解析失败，直接显示原内容
-    jsonContent.value = typeof response === 'string' ? response : JSON.stringify(response, null, 2);
+    jsonContent.value =
+      typeof response === 'string'
+        ? response
+        : JSON.stringify(response, null, 2);
   }
 
   // 更新payload和headers
@@ -163,7 +182,8 @@ const selectRequest = (index: number) => {
 
   if (headers) {
     try {
-      let headersObj = typeof headers === 'string' ? JSON.parse(headers) : headers;
+      let headersObj =
+        typeof headers === 'string' ? JSON.parse(headers) : headers;
       headersContent.value = JSON.stringify(headersObj, null, 2);
     } catch (e) {
       headersContent.value = String(headers);
@@ -182,7 +202,7 @@ const selectMock = (index: number) => {
   selectedMockIndex.value = index;
   selectedRequestIndex.value = -1;
   const mock = mockList.value[index];
-  
+
   if (!mock || !mock.response) {
     jsonContent.value = '';
     payloadContent.value = '';
@@ -195,29 +215,32 @@ const selectMock = (index: number) => {
     // 如果response已经是对象，直接格式化
     if (typeof mock.response === 'object') {
       jsonContent.value = JSON.stringify(mock.response, null, 2);
-    } 
-    if(params){
+    }
+    if (params) {
       let paramsObj = typeof params === 'string' ? JSON.parse(params) : params;
       payloadContent.value = JSON.stringify(toRaw(paramsObj), null, 2);
     }
-    if(headers){
-      let headersObj = typeof headers === 'string' ? JSON.parse(headers) : headers;
+    if (headers) {
+      let headersObj =
+        typeof headers === 'string' ? JSON.parse(headers) : headers;
       headersContent.value = JSON.stringify(headersObj, null, 2);
     }
   } catch (error) {
     // 如果解析失败，直接显示原内容
-    jsonContent.value = typeof mock.response === 'string' ? mock.response : JSON.stringify(mock.response, null, 2);
+    jsonContent.value =
+      typeof mock.response === 'string'
+        ? mock.response
+        : JSON.stringify(mock.response, null, 2);
   }
-
 };
 
 const showAddMockDialog = () => {
   isEditMode.value = false;
-  
+
   // 如果有选中的请求，使用它的信息预填
   if (selectedRequest.value) {
     const req = selectedRequest.value;
-    
+
     // 处理响应数据
     let responseData = '{}';
     if (req.response) {
@@ -229,22 +252,22 @@ const showAddMockDialog = () => {
     } else if (jsonContent.value) {
       responseData = jsonContent.value;
     }
-    
+
     currentMock.value = {
       url: req.url,
       method: req.method,
       enabled: true,
-      response: responseData
+      response: responseData,
     };
   } else {
     currentMock.value = {
       url: '',
       method: 'GET',
       enabled: true,
-      response: '{}'
+      response: '{}',
     };
   }
-  
+
   mockDialogVisible.value = true;
 };
 
@@ -264,13 +287,17 @@ const editMock = (index: number) => {
   isEditMode.value = true;
   editingIndex.value = index;
   currentMock.value = { ...mockList.value[index] };
-  
+
   // 格式化JSON响应数据
   if (currentMock.value.response) {
     try {
       // 如果response已经是对象，直接格式化
       if (typeof currentMock.value.response === 'object') {
-        currentMock.value.response = JSON.stringify(currentMock.value.response, null, 2);
+        currentMock.value.response = JSON.stringify(
+          currentMock.value.response,
+          null,
+          2
+        );
       } else {
         // 如果是字符串，先解析再格式化
         const parsedResponse = JSON.parse(currentMock.value.response);
@@ -284,7 +311,7 @@ const editMock = (index: number) => {
     // 如果没有response数据，设置默认值
     currentMock.value.response = '{}';
   }
-  
+
   mockDialogVisible.value = true;
 };
 
@@ -325,8 +352,8 @@ const addRequestToMock = async (index: number) => {
   }
 
   // 检查是否已存在相同URL和方法的Mock
-  const existingMock = mockList.value.find(mock => 
-    mock.cacheKey === request.cacheKey
+  const existingMock = mockList.value.find(
+    (mock) => mock.cacheKey === request.cacheKey
   );
 
   if (existingMock) {
@@ -334,7 +361,7 @@ const addRequestToMock = async (index: number) => {
     return;
   }
 
-  const { response,cacheKey,url,method,params,headers } = request;
+  const { response, cacheKey, url, method, params, headers } = request;
   // 创建新的Mock配置
   const newMock = {
     cacheKey: cacheKey,
@@ -347,7 +374,7 @@ const addRequestToMock = async (index: number) => {
 
   // 添加到Mock列表
   mockList.value.push(newMock);
-  const curMockList = await chromeLocalStorage.get('mockList') || [];
+  const curMockList = (await chromeLocalStorage.get('mockList')) || [];
   curMockList.push(newMock);
   chromeLocalStorage.set({ mockList: curMockList });
   ElMessage.success('已添加到Mock列表');
@@ -364,8 +391,10 @@ const deleteMock = async (cacheKey: string) => {
     return;
   }
 
-  const curMockList = await chromeLocalStorage.get('mockList') || [];
-  const newMockList = curMockList.filter((item: any) => item.cacheKey !== cacheKey);
+  const curMockList = (await chromeLocalStorage.get('mockList')) || [];
+  const newMockList = curMockList.filter(
+    (item: any) => item.cacheKey !== cacheKey
+  );
   chromeLocalStorage.set({ mockList: newMockList });
   mockList.value = newMockList;
   ElMessage.success('删除成功');
@@ -382,13 +411,13 @@ const handleClearAllMocks = async () => {
   jsonContent.value = '';
   payloadContent.value = '';
   headersContent.value = '';
-  
+
   // 清空 mock 列表
   mockList.value = [];
-  
+
   // 清空存储
   await chromeLocalStorage.set({ mockList: [] });
-  
+
   ElMessage.success('已清除所有Mock数据');
 };
 
@@ -398,12 +427,12 @@ const handleClearRequests = () => {
   jsonContent.value = '';
   payloadContent.value = '';
   headersContent.value = '';
-  
+
   // 清空两个存储位置的数据
-  // chromeSessionStorage.set({ 
+  // chromeSessionStorage.set({
   //   curCacheData: [],
   // });
-  
+
   ElMessage.success('记录已清空');
 };
 
@@ -414,21 +443,23 @@ const deleteRequest = (index: number) => {
     jsonContent.value = '';
     payloadContent.value = '';
     headersContent.value = '';
-  } 
+  }
   requests.value.splice(index, 1);
 };
 
 const saveJsonContent = async (content: string) => {
   // 如果是编辑mock的响应
-  if (selectedMock.value && 
-      Array.isArray(mockList.value) && 
-      selectedMockIndex.value >= 0 && 
-      selectedMockIndex.value < mockList.value.length) {
+  if (
+    selectedMock.value &&
+    Array.isArray(mockList.value) &&
+    selectedMockIndex.value >= 0 &&
+    selectedMockIndex.value < mockList.value.length
+  ) {
     const parseContent = JSON.parse(content);
     const { cacheKey } = mockList.value[selectedMockIndex.value];
-    const curMockList = await chromeLocalStorage.get('mockList') || [];
+    const curMockList = (await chromeLocalStorage.get('mockList')) || [];
     curMockList.forEach((item: any) => {
-      if(item.cacheKey === cacheKey){
+      if (item.cacheKey === cacheKey) {
         item.response = parseContent;
       }
     });
@@ -442,19 +473,19 @@ const handleVerticalResize = (size: number) => {
   if (jsonViewerRef.value?.jsonViewerAreaRef) {
     const container = document.querySelector('.main-layout') as HTMLElement;
     if (!container) return;
-    
+
     const containerWidth = container.getBoundingClientRect().width;
     const contentArea = document.querySelector('.content-area') as HTMLElement;
     if (!contentArea) return;
-    
+
     // 确保调整后的宽度不超出合理范围
     const minWidth = 300;
     const maxWidth = containerWidth * 0.75; // 最大不超过容器的75%
     const newSize = Math.max(minWidth, Math.min(maxWidth, size));
-    
+
     // 计算内容区和JSON查看器的相对宽度
     const contentAreaWidth = containerWidth - newSize - 87; // 减去菜单宽度和分隔线宽度
-    
+
     // 应用新宽度
     contentArea.style.width = `${contentAreaWidth}px`;
     contentArea.style.flex = '0 0 auto';
@@ -467,20 +498,20 @@ const handleHorizontalResize = (size: number) => {
   const monitorSection = monitorSectionRef.value?.monitorSectionRef;
   const mockSection = mockSectionRef.value?.mockSectionRef;
   const container = monitorSection?.parentElement;
-  
+
   if (monitorSection && mockSection && container) {
     const containerHeight = container.getBoundingClientRect().height;
-    
+
     // 确保调整后的高度不超出合理范围
     const minHeight = 100;
     const maxHeight = containerHeight - 120; // 保留足够空间给Mock区域
     const newSize = Math.max(minHeight, Math.min(maxHeight, size));
-    
+
     const heightPercent = (newSize / containerHeight) * 100;
-    
+
     monitorSection.style.height = `${heightPercent}%`;
     monitorSection.style.minHeight = `${minHeight}px`;
-    mockSection.style.height = `calc(100% - ${heightPercent}% - 3px)`;  // 减去分隔线的高度
+    mockSection.style.height = `calc(100% - ${heightPercent}% - 3px)`; // 减去分隔线的高度
     mockSection.style.minHeight = `100px`;
   }
 };
@@ -494,7 +525,7 @@ const initLayout = () => {
     const jsonViewerWidth = containerWidth * 0.4; // JSON查看器占40%
     handleVerticalResize(jsonViewerWidth);
   }
-  
+
   // 初始化水平分割比例
   const contentArea = document.querySelector('.content-area') as HTMLElement;
   if (contentArea) {
@@ -508,24 +539,23 @@ const initLayout = () => {
 const setupMessageListener = () => {
   // 直接监听background发送的消息
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    
-
-    if (message.type === "new_request_data") {
+    if (message.type === 'new_request_data') {
       // 直接添加新的请求数据
       requests.value.push(message.data);
-      
-    } else if (message.type === "batch_request_data") {
+    } else if (message.type === 'batch_request_data') {
       requests.value = message.data;
-      
     }
   });
 };
 
 const notifyMockList = (val: any) => {
-    messageToContent({
-        type: 'mockList_change',
-        data: val
-      }, () => {});
+  messageToContent(
+    {
+      type: 'mockList_change',
+      data: val,
+    },
+    () => {}
+  );
 };
 
 // 监听 mockList 深度变化，保持存储和注入脚本同步
@@ -540,9 +570,8 @@ watch(
 
 // 生命周期钩子
 onMounted(async () => {
-
   // 加载Mock列表
-  const storedMockList = await chromeLocalStorage.get('mockList') || [];
+  const storedMockList = (await chromeLocalStorage.get('mockList')) || [];
   if (Array.isArray(storedMockList)) {
     mockList.value = storedMockList;
   } else {
@@ -551,17 +580,15 @@ onMounted(async () => {
 
   // 等待DOM渲染完成后初始化布局
   setTimeout(initLayout, 100);
-  
+
   // 监听窗口大小变化，重新调整布局
   window.addEventListener('resize', initLayout);
-  
+
   // 设置消息监听器
   setupMessageListener();
-  
+
   messageToContent({
-    type: "sidebar_ready"
-  },(response) => {
-    
+    type: 'sidebar_ready',
   });
 });
 
@@ -576,13 +603,13 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  
+
   .main-layout {
     display: flex;
     flex: 1;
     overflow: hidden;
     min-height: 0; // 修复Flex布局中的溢出问题
-    
+
     .content-area {
       flex: 1;
       min-width: 300px;
@@ -609,4 +636,4 @@ onUnmounted(() => {
     max-width: 50%;
   }
 }
-</style> 
+</style>
