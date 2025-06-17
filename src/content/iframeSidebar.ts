@@ -15,11 +15,11 @@ class IframeSidebar {
   constructor() {}
 
   public async init() {
-    const { sideBarLastVisible, monitorEnabled } = await chromeLocalStorage.get(
+    const { sideBarLastVisible } = await chromeLocalStorage.get(
       ['sideBarLastVisible', 'monitorEnabled']
     );
 
-    if (sideBarLastVisible && monitorEnabled) {
+    if (sideBarLastVisible) {
       this.toggle(true);
     }
     this.setupListeners();

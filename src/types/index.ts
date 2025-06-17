@@ -1,6 +1,5 @@
 export interface Setting {
     disasterRecoveryProcessing: boolean;
-    doYouWantToEnableHijacking: boolean;
     allowToInjectOrigin: { 
         type: "regex" | "fully" | "include";
         domain: string;

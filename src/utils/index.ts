@@ -1,6 +1,7 @@
 import hashSum from 'hash-sum';
 import Storage from './storage';
 import stringify from 'json-stable-stringify';
+import { isNil } from 'lodash-es';
 
 export const chromeLocalStorage = new Storage('local');
 export const chromeSyncStorage = new Storage('sync');
@@ -23,6 +24,7 @@ export function normalizeUrl(url: string) {
       'v',
       '_',
       'ts',
+      'taskUuid',
     ];
 
     // 移除时间戳参数
@@ -44,7 +46,7 @@ export function generateCacheKey(
   // ① 规范化 URL（排序后的查询串）
   const u = new URL(url);
   u.searchParams.sort();
-  if (!params) {
+  if (isNil(params)) {
     return hashSum(`${u.toString()}|${method.toUpperCase()}`);
   } // 保证顺序一致
 

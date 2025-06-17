@@ -9,7 +9,7 @@ import { Setting } from '@/types';
 import { cacheManager } from './cacheManager';
 import dayjs from 'dayjs';
 
-console.log('进入ajaxHook',dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'))
+console.log('进入ajaxHook', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
 
 function checkStatus(
   request: AjaxHookRequest,
@@ -57,116 +57,147 @@ function filterSituation(resp) {
   return true;
 }
 
-const ajaxHooker = ajaxInterface();
 
 function beginHook() {
   let mockList = [];
   let mockEnabled = true;
   let monitorEnabled = true;
   let disasterRecoveryProcessing = false;
+  let urlMatch = false;
 
-  console.log('启动ajaxHook',dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'))
-  console.log('monitorEnabled',monitorEnabled)
-  console.log(window.__HOOK_CFG,'window.__HOOK_CFG')
-  if(window.__HOOK_CFG){
-    const { monitorEnabled: monitorEnabledInit, disasterRecoveryProcessing: disasterRecoveryProcessingInit, mockList: mockListInit = [], mockEnabled: mockEnabledInit } = window.__HOOK_CFG;
+  console.log('启动ajaxHook', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
+  console.log('monitorEnabled', monitorEnabled);
+  console.log(window.__HOOK_CFG, 'window.__HOOK_CFG');
+  if (window.__HOOK_CFG) {
+    const {
+      monitorEnabled: monitorEnabledInit,
+      disasterRecoveryProcessing: disasterRecoveryProcessingInit,
+      mockList: mockListInit = [],
+      mockEnabled: mockEnabledInit,
+      urlMatch: urlMatchInit,
+    } = window.__HOOK_CFG;
     monitorEnabled = monitorEnabledInit;
     disasterRecoveryProcessing = disasterRecoveryProcessingInit;
     mockList = mockListInit;
     mockEnabled = mockEnabledInit;
+    urlMatch = urlMatchInit;
   }
-
-  ajaxHooker.hook((request: AjaxHookRequest) => {
-    console.log('ajaxHooker kp',request, dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
-    request.response = (resp: AjaxHookResponse) => {
-      console.log('resp',resp)
-      console.log('filterSituation',filterSituation(resp))
-      if (!filterSituation(resp)) {
-        return resp;
-      }
-      return ajaxHooker.modifyJsonResponse(
+  console.log(
+    monitorEnabled,
+    urlMatch,
+    disasterRecoveryProcessing,
+    'monitorEnabled, urlMatch, disasterRecoveryProcessing'
+  );
+  if (monitorEnabled || (urlMatch && disasterRecoveryProcessing)) {
+    const ajaxHooker = ajaxInterface();
+    ajaxHooker.hook((request: AjaxHookRequest) => {
+      console.log(
+        'ajaxHooker kp',
         request,
-        resp as AjaxHookResponse,
-        (json: Record<string, any>) => {
-          const { status, cacheKey } = checkStatus(request, resp);
-          if (monitorEnabled) {
-            let isMock = false;
-            let mockData = json;
-            if (mockEnabled) {
-              if (mockList.length > 0) {
-                const mock = mockList.find(
-                  (item: any) => item.cacheKey === cacheKey
-                );
-                if (mock) {
-                  json = mock.response;
-                  mockData = mock.response;
-                  resp.status = 200;
-                  resp.statusText = 'OK';
-                  isMock = true;
-                  
+        dayjs().format('YYYY-MM-DD HH:mm:ss.SSS')
+      );
+      request.response = (resp: AjaxHookResponse) => {
+        console.log('resp', resp);
+        if (!filterSituation(resp)) {
+          return resp;
+        }
+        return ajaxHooker.modifyJsonResponse(
+          request,
+          resp as AjaxHookResponse,
+          (json: Record<string, any>) => {
+            const { status, cacheKey } = checkStatus(request, resp);
+            if (monitorEnabled) {
+              let isMock = false;
+              let mockData = json;
+              if (mockEnabled) {
+                if (mockList.length > 0) {
+                  const mock = mockList.find(
+                    (item: any) => item.cacheKey === cacheKey
+                  );
+                  if (mock) {
+                    json = mock.response;
+                    mockData = mock.response;
+                    resp.status = 200;
+                    resp.statusText = 'OK';
+                    isMock = true;
+                  }
                 }
               }
+              console.log('发送数据 currentRequest');
+              customEventSend('ajaxHook_to_content', {
+                type: 'currentRequest',
+                message: {
+                  url: resp.finalUrl,
+                  method: request.method,
+                  params: request.data,
+                  response: mockData,
+                  cacheKey: cacheKey,
+                  headers: request.headers,
+                  time: new Date().getTime(),
+                  isMock,
+                },
+              });
+              if (isMock) {
+                return json;
+              }
             }
-            console.log('发送数据 currentRequest')
-            customEventSend('ajaxHook_to_content', {
-              type: 'currentRequest',
-              message: {
-                url: resp.finalUrl,
-                method: request.method,
-                params: request.data,
-                response: mockData,
-                cacheKey: cacheKey,
-                headers: request.headers,
-                time: new Date().getTime(),
-                isMock,
-              },
-            });
-            if (isMock) {
-              return json;
+
+            if (disasterRecoveryProcessing) {
+              switch (status) {
+                case ProcessStatus.RECOVERY:
+                  resp.status = 200;
+                  resp.statusText = 'OK';
+                  // 🔥 使用缓存管理器获取缓存数据
+                  const cachedData = cacheManager.get(cacheKey);
+                  json = cachedData ? cachedData.cacheResponse : json;
+
+                  customEventSend('ajaxHook_to_content', {
+                    type: 'cache_hit',
+                    message: {
+                      url: resp.finalUrl,
+                      method: request.method,
+                      params: request.data,
+                      response: json,
+                      cacheKey: cacheKey,
+                    },
+                  });
+                  break;
+                case ProcessStatus.CACHE:
+                  // 🔥 使用缓存管理器保存数据（防抖写入，自动LRU清理）
+                  cacheManager.set(cacheKey, {
+                    cacheResponse: json,
+                    cacheReqParams: request.data,
+                  });
+
+                  break;
+                case ProcessStatus.ERROR_NO_CACHE:
+                  break;
+                default:
+                  break;
+              }
             }
+
+            return json; // 返回修改后的json
           }
+        );
+      };
+    });
 
-          if (disasterRecoveryProcessing) {
-            switch (status) {
-              case ProcessStatus.RECOVERY:
-                
-                resp.status = 200;
-                resp.statusText = 'OK';
-                // 🔥 使用缓存管理器获取缓存数据
-                const cachedData = cacheManager.get(cacheKey);
-                json = cachedData ? cachedData.cacheResponse : json;
-
-                customEventSend('ajaxHook_to_content', {
-                  type: 'cache_hit',
-                  message: {
-                    url: resp.finalUrl,
-                    method: request.method,
-                    params: request.data,
-                    response: json,
-                    cacheKey: cacheKey,
-                  },
-                });
-                break;
-              case ProcessStatus.CACHE:
-                // 🔥 使用缓存管理器保存数据（防抖写入，自动LRU清理）
-                cacheManager.set(cacheKey, {
-                  cacheResponse: json,
-                  cacheReqParams: request.data,
-                });
-
-                break;
-              case ProcessStatus.ERROR_NO_CACHE:
-                break;
-              default:
-                break;
-            }
-          }
-
-          return json; // 返回修改后的json
-        }
-      );
-    };
-  });
+    window.addEventListener('content_to_ajaxHook', (event) => {
+      const { detail: { type, message } = {} } = event || {};
+      if (type === 'mockList_change') {
+        mockList = message;
+      } else if (type === 'mockEnabled_change') {
+        mockEnabled = message;
+        console.log('mockEnabled_change ajaxHook', message);
+      } else if (type === 'monitorEnabled_change') {
+        console.log('monitorEnabled_change ajaxHook', message);
+        monitorEnabled = message;
+      } else if (type === 'disasterRecoveryProcessing_change') {
+        disasterRecoveryProcessing = message;
+      }
+    });
+  }
 }
 
 function microTaskInit() {
@@ -175,7 +206,7 @@ function microTaskInit() {
       let retryCount = 0;
       const maxRetries = 3;
       const check = () => {
-        console.log('check',window.__HOOK_CFG, `重试次数: ${retryCount}`)
+        console.log('check', window.__HOOK_CFG, `重试次数: ${retryCount}`);
         if (window.__HOOK_CFG) {
           resolve(window.__HOOK_CFG);
         } else if (retryCount < maxRetries) {
@@ -191,7 +222,7 @@ function microTaskInit() {
   }
   waitForConfig().then((cfg) => {
     beginHook();
-  })
+  });
 }
 
 function retryInit() {
@@ -204,7 +235,7 @@ function retryInit() {
       retryCount++;
       setTimeout(check, 0); // 1ms 后重试
     }
-  }
+  };
   check();
 }
 
@@ -253,7 +284,6 @@ retryInit();
 //                     resp.status = 200;
 //                     resp.statusText = 'OK';
 //                     isMock = true;
-                    
 //                   }
 //                 }
 //               }
@@ -278,7 +308,6 @@ retryInit();
 //             if (disasterRecoveryProcessing) {
 //               switch (status) {
 //                 case ProcessStatus.RECOVERY:
-                  
 //                   resp.status = 200;
 //                   resp.statusText = 'OK';
 //                   // 🔥 使用缓存管理器获取缓存数据
@@ -325,5 +354,5 @@ retryInit();
 //     monitorEnabled = message;
 //   } else if (type === 'disasterRecoveryProcessing_change') {
 //     disasterRecoveryProcessing = message;
-//   } 
+//   }
 // });

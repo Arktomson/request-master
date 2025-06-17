@@ -27,7 +27,7 @@
     <!-- Mock列表 -->
     <div class="mock-list">
       <div v-if="mockList.length === 0" class="empty-list">
-        <el-empty description="暂无Mock数据" />
+        <el-empty description="暂无Mock数据" :image-size="130"/>
       </div>
       <template v-else>
         <div 
@@ -253,6 +253,9 @@ defineExpose({
       flex-direction: column;
       align-items: center;
       padding: 32px 0;
+      :deep(.el-empty) {
+        --el-empty-padding: 10px 0;
+      }
     }
     
     .mock-item {

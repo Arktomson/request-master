@@ -7,55 +7,37 @@ import dayjs from 'dayjs';
 
 // 立即执行函数，用于防止重复执行
 (function () {
-  // 防止在iframe中重复执行
-  if (window.top !== window) {
-    
-    return;
-  }
-
-  // 防止重复执行的全局标记
-  if ((window as any).__HTTP_CACHE_CONTENT_SCRIPT_LOADED__) {
-    
-    return;
-  }
-
-  
-  (window as any).__HTTP_CACHE_CONTENT_SCRIPT_LOADED__ = true;
-
-  // 内容脚本，在匹配的页面上运行
-  
-
   // 优化：缓存存储数据，避免重复调用
-  let curRequestData: any = [];
+  let pendingBatchProcessData: any = [];
   let sideBarReady = false;
 
-  function whetherToInject(storageData: any) {
-    const curOrigin = window.location.origin;
-    const { allowToInjectOrigin, disasterRecoveryProcessing, monitorEnabled } =
-      storageData;
+  // function whetherToInject(storageData: any) {
+  //   const curOrigin = window.location.origin;
+  //   const { allowToInjectOrigin, disasterRecoveryProcessing, monitorEnabled } =
+  //     storageData;
 
-    return (
-      (allowToInjectOrigin.some(
-        ({
-          type,
-          domain,
-        }: {
-          type: 'regex' | 'fully' | 'include';
-          domain: string;
-        }) => {
-          if (type === 'fully') {
-            return domain === curOrigin;
-          } else if (type === 'include') {
-            return curOrigin.includes(domain);
-          } else {
-            return new RegExp(domain).test(curOrigin);
-          }
-        }
-      ) &&
-        disasterRecoveryProcessing) ||
-      monitorEnabled
-    );
-  }
+  //   return (
+  //     (allowToInjectOrigin.some(
+  //       ({
+  //         type,
+  //         domain,
+  //       }: {
+  //         type: 'regex' | 'fully' | 'include';
+  //         domain: string;
+  //       }) => {
+  //         if (type === 'fully') {
+  //           return domain === curOrigin;
+  //         } else if (type === 'include') {
+  //           return curOrigin.includes(domain);
+  //         } else {
+  //           return new RegExp(domain).test(curOrigin);
+  //         }
+  //       }
+  //     ) &&
+  //       disasterRecoveryProcessing) ||
+  //     monitorEnabled
+  //   );
+  // }
 
   async function injectScriptToPage() {
     try {
@@ -99,8 +81,7 @@ import dayjs from 'dayjs';
         });
       } else if (type === 'currentRequest') {
         if (!sideBarReady) {
-          
-          curRequestData.push(message);
+          pendingBatchProcessData.push(message);
         } else {
           chrome.runtime.sendMessage({
             type: 'new_request_data',
@@ -140,11 +121,11 @@ import dayjs from 'dayjs';
           chrome.runtime.sendMessage(
             {
               type: 'batch_request_data',
-              data: curRequestData,
+              data: pendingBatchProcessData,
             },
             (response) => {
               
-              curRequestData = [];
+              pendingBatchProcessData = [];
             }
           );
           

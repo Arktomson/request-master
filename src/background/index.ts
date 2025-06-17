@@ -6,6 +6,38 @@ import {
 import { Setting } from '@/types';
 import dayjs from 'dayjs';
 import { isNil } from 'lodash-es';
+
+// // 获取当前活动tab的URL
+// async function getCurrentTabUrl(): Promise<string | null> {
+//   try {
+//     const [tab] = await chrome.tabs.query({
+//       active: true,
+//       currentWindow: true,
+//     });
+//     return tab?.url || null;
+//   } catch (error) {
+//     console.error('获取当前tab URL失败:', error);
+//     return null;
+//   }
+// }
+
+// 检查URL是否符合注入条件
+function shouldInjectForUrl(url: string, allowedOrigins: any[]): boolean {
+  const formatUrl = new URL(url);
+  const originUrl = formatUrl.origin;
+  console.log(originUrl, 'originUrl');
+  return allowedOrigins.some((origin) => {
+    if (origin.type === 'regex') {
+      const regex = new RegExp(origin.domain);
+      return regex.test(originUrl);
+    } else if (origin.type === 'fully') {
+      return originUrl === origin.domain;
+    } else if (origin.type === 'include') {
+      return originUrl.includes(origin.domain);
+    }
+  });
+}
+
 async function initConfig() {
   const [stored, _] = await Promise.all([
     chromeLocalStorage.getAll(),
@@ -40,29 +72,43 @@ async function isRegistered() {
   });
   return list.length > 0;
 }
-function shouldInject(cfg: Setting) {
-  return Boolean(cfg.monitorEnabled);
-}
-async function injectCfgToPage(tabId: number, frameId = 0) {
+async function injectCfgToPage({
+  tabId,
+  frameId,
+  url,
+}: {
+  tabId: number;
+  frameId: number;
+  url: string;
+}) {
   console.log('准备注入配置', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
-  const cfg = await chromeLocalStorage.getAll();
-  await chrome.scripting.executeScript({
+  const config = await chromeLocalStorage.getAll();
+  const shouldInjectForThisUrl = shouldInjectForUrl(
+    url,
+    config.allowToInjectOrigin || []
+  );
+  console.log(shouldInjectForThisUrl, 'shouldInjectForThisUrl');
+  config.urlMatch = shouldInjectForThisUrl;
+  console.log(config, 'config');
+  chrome.scripting.executeScript({
     target: { tabId, frameIds: [frameId] },
     world: 'MAIN',
     func: (c) => {
       console.log('执行配置', new Date().toISOString());
       (window as any).__HOOK_CFG = c;
     },
-    args: [cfg],
+    args: [config],
     injectImmediately: true,
   });
 }
+
 async function ensureScripts() {
-  const cfg = await chromeLocalStorage.getAll();
-  const wanted = shouldInject(cfg as Setting);
-  const already = await isRegistered();
-  console.log(wanted, already, 'wanted,already');
-  if (wanted && !already) {
+  const [cfg, already] = await Promise.all([
+    chromeLocalStorage.getAll(),
+    isRegistered(),
+  ]);
+  const hijackSwitch = cfg.monitorEnabled || cfg.disasterRecoveryProcessing;
+  if (hijackSwitch && !already) {
     await chrome.scripting.registerContentScripts([
       {
         id: SCRIPT_ID,
@@ -74,7 +120,7 @@ async function ensureScripts() {
         persistAcrossSessions: true,
       },
     ]);
-  } else if (!wanted && already) {
+  } else if (!hijackSwitch && already) {
     await chrome.scripting.unregisterContentScripts({ ids: [SCRIPT_ID] });
   }
 }
@@ -117,26 +163,24 @@ function wireRuntimeMessaging() {
   });
 }
 function wireStorageWatcher() {
-  chromeLocalStorage.onChange(
-    async (changes, area) => {
-      if (
-        ['monitorEnabled', 'doYouWantToEnableHijacking'].some(
-          (k) => k in changes
-        )
-      ) {
-        await ensureScripts();
-      }
-    },
-    ['monitorEnabled', 'doYouWantToEnableHijacking']
-  );
+  chromeLocalStorage.onChange(() => {
+    ensureScripts();
+  }, ['monitorEnabled', 'disasterRecoveryProcessing']);
 }
 function wireNavigationInjection() {
-  chrome.webNavigation.onCommitted.addListener(async ({ tabId, frameId }) => {
-    console.log('有页面加载',dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
-    try {
-      await injectCfgToPage(tabId, frameId);
-    } catch (_) {}
-  });
+  chrome.webNavigation.onCommitted.addListener(
+    ({ tabId, frameId, url }) => {
+      console.log('有页面加载', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'), url);
+      try {
+        injectCfgToPage({ tabId, frameId, url });
+      } catch (_) {
+        console.error('注入配置失败:', _);
+      }
+    },
+    {
+      url: [{ schemes: ['http', 'https'] }],
+    }
+  );
 }
 
 chrome.runtime.onInstalled.addListener(async () => {

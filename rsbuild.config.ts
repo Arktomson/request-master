@@ -3,51 +3,12 @@ import { pluginVue } from '@rsbuild/plugin-vue';
 import { pluginSass } from '@rsbuild/plugin-sass';
 import { pluginTypeCheck } from '@rsbuild/plugin-type-check';
 import { resolve } from 'path';
-import fs from 'fs';
-import path from 'path';
-
-// 修改 manifest 的插件
-function appendMainWorldPlugin() {
-  return {
-    name: 'append-main-world',
-    setup(api: any) {
-      api.onAfterBuild(() => {
-        const outputPath = api.context.distPath;
-        const manifestPath = path.join(outputPath, 'manifest.json');
-
-        try {
-          if (fs.existsSync(manifestPath)) {
-            const manifestContent = fs.readFileSync(manifestPath, 'utf8');
-            const manifest = JSON.parse(manifestContent);
-
-            manifest.content_scripts = manifest.content_scripts || [];
-            manifest.content_scripts.push({
-              matches: ['<all_urls>'],
-              js: ['ajaxHook.js'],
-              run_at: 'document_start',
-              all_frames: false,
-              world: 'MAIN',
-            });
-
-            fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-            console.debug('✅ 成功修改 manifest.json');
-          } else {
-            console.warn('⚠️ manifest.json 文件不存在于:', manifestPath);
-          }
-        } catch (error) {
-          console.error('❌ 修改 manifest.json 失败:', error);
-        }
-      });
-    },
-  };
-}
 
 export default defineConfig({
   plugins: [
     pluginVue(),
     pluginSass(),
     // pluginTypeCheck(), // 暂时禁用类型检查
-    appendMainWorldPlugin(),
   ],
 
   // 多入口配置
@@ -64,8 +25,14 @@ export default defineConfig({
       // content scripts 入口
       'content/index': resolve(__dirname, 'src/content/index.ts'),
       'content/iframeSidebar': resolve(__dirname, 'src/content/iframeSidebar.ts'),
-      // ajaxHook 入口 (来自 vite.mainworld.config.ts)
-      ajaxHook: resolve(__dirname, 'src/content/ajaxHook.ts'),
+      // ajaxHook 入口 - 配置为IIFE格式
+      ajaxHook: {
+        import: resolve(__dirname, 'src/content/ajaxHook.ts'),
+        library: {
+          type: 'iife',
+          name: 'AjaxHook', // 可选：为IIFE指定全局变量名
+        },
+      },
     },
     define: {
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
@@ -138,27 +105,20 @@ export default defineConfig({
         })
       );
 
-      // ajaxHook 的特殊处理 - 输出为 IIFE 格式且不进行代码分割
-      config.output.filename = (pathData: any) => {
-        if (pathData.chunk && pathData.chunk.name === 'ajaxHook') {
-          return 'ajaxHook.js';
-        }
-        return '[name].js';
+      // 禁用ajaxHook的代码分割，确保它是一个独立的文件
+      config.optimization = config.optimization || {};
+      config.optimization.splitChunks = config.optimization.splitChunks || {};
+      config.optimization.splitChunks.cacheGroups = {
+        ...config.optimization.splitChunks.cacheGroups,
+        // 确保ajaxHook不被分割
+        ajaxHook: {
+          name: 'ajaxHook',
+          test: /ajaxHook/,
+          chunks: 'all',
+          enforce: true,
+          priority: 100,
+        },
       };
-
-      // 为 ajaxHook 设置特殊的库输出格式
-      if (config.optimization?.splitChunks) {
-        config.optimization.splitChunks.cacheGroups = {
-          ...config.optimization.splitChunks.cacheGroups,
-          ajaxHook: {
-            name: 'ajaxHook',
-            test: /ajaxHook/,
-            chunks: 'all',
-            enforce: true,
-            reuseExistingChunk: false,
-          },
-        };
-      }
 
       return config;
     },
@@ -168,6 +128,18 @@ export default defineConfig({
     // 代码分割配置
     chunkSplit: {
       strategy: 'split-by-experience',
+      // 确保ajaxHook不被分包
+      override: {
+        cacheGroups: {
+          ajaxHook: {
+            test: /ajaxHook/,
+            name: 'ajaxHook',
+            chunks: 'all',
+            enforce: true,
+            priority: 100,
+          },
+        },
+      },
     },
   },
 }); 
