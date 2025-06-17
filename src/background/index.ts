@@ -112,7 +112,7 @@ async function ensureScripts() {
     await chrome.scripting.registerContentScripts([
       {
         id: SCRIPT_ID,
-        js: ['ajaxHook.js'],
+        js: ['src/content/ajaxHook.js'],
         matches: ['<all_urls>'],
         runAt: 'document_start',
         world: 'MAIN',
@@ -193,3 +193,5 @@ chrome.runtime.onStartup.addListener(async () => {
 wireRuntimeMessaging();
 wireStorageWatcher();
 wireNavigationInjection();
+
+console.log('background执行')

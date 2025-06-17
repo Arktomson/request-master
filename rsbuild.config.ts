@@ -15,22 +15,32 @@ export default defineConfig({
       // 主应用入口 - sidebar
       'src/sidebar/index': resolve(__dirname, 'src/sidebar/index.ts'),
       // popup 入口 - 修改为 index 以匹配 manifest.json
-      'src/popup/index': resolve(__dirname, 'src/popup/main.ts'),
+      'src/popup/index': resolve(__dirname, 'src/popup/index.ts'),
       // options 入口 - 修改为 index 以匹配 manifest.json
-      'src/options/index': resolve(__dirname, 'src/options/main.ts'),
+      'src/options/index': resolve(__dirname, 'src/options/index.ts'),
       // background 入口
-      'src/background/index': resolve(__dirname, 'src/background/index.ts'),
-      // content scripts 入口
-      'src/content/index': resolve(__dirname, 'src/content/index.ts'),
-      'src/content/iframeSidebar': resolve(__dirname, 'src/content/iframeSidebar.ts'),
-      // ajaxHook 入口 - 配置为IIFE格式
-      'src/content/ajaxHook': {
-        import: resolve(__dirname, 'src/content/ajaxHook.ts'),
-        library: {
-          type: 'iife',
-          name: 'AjaxHook', // 可选：为IIFE指定全局变量名
-        },
+      'src/background/index': {
+        import: resolve(__dirname, 'src/background/index.ts'),
+        html: false,
       },
+      // content scripts 入口
+      'src/content/index': {
+        import: resolve(__dirname, 'src/content/index.ts'),
+        html: false,
+      },
+      'src/content/iframeSidebar': {
+        import: resolve(__dirname, 'src/content/iframeSidebar.ts'),
+        html: false,
+              },
+        // ajaxHook 入口 - 配置为IIFE格式（不暴露全局变量）
+        'src/content/ajaxHook': {
+          import: resolve(__dirname, 'src/content/ajaxHook.ts'),
+          library: {
+            type: 'iife',
+            // 不设置 name，生成匿名 IIFE，不暴露全局变量
+          },
+          html: false,
+        },
     },
     define: {
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
@@ -56,8 +66,7 @@ export default defineConfig({
       js: '[name].js',
       css: '[name].css',
     },
-    // 资源文件名配置
-    assetPrefix: './',
+    // 资源文件名配置 - 让构建工具自动处理路径
     // 生产环境压缩配置
     minify: process.env.NODE_ENV === 'production',
   },
@@ -70,7 +79,7 @@ export default defineConfig({
         'src/popup/index': './src/popup/index.html',
         'src/options/index': './src/options/index.html',
       };
-      return templateMap[entryName];
+      return templateMap[entryName] ?? null;
     },
   },
 
@@ -86,18 +95,6 @@ export default defineConfig({
   },
 
   tools: {
-    htmlPlugin: (config, { entryName }) => {
-      // 只为这些入口生成 HTML
-      const htmlEntries = ['src/sidebar/index', 'src/popup/index', 'src/options/index'];
-      if (!htmlEntries.includes(entryName)) {
-        return false; // 不生成 HTML
-      }
-      // 禁用默认的多入口 HTML
-      if (entryName === 'index') {
-        return false;
-      }
-      return config;
-    },
     rspack: (config: any) => {
       // 复制 manifest.json 和静态资源
       config.plugins.push(
@@ -119,6 +116,7 @@ export default defineConfig({
       config.output = config.output || {};
       config.output.path = resolve(__dirname, process.env.NODE_ENV === 'production' ? 'dist-prod' : 'dist');
       config.output.filename = '[name].js';
+      config.output.publicPath = "auto"; // 使用相对路径，避免绝对路径问题
       
       // 禁用默认的 static 目录分组
       config.optimization = config.optimization || {};

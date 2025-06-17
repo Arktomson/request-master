@@ -19,9 +19,7 @@
   ],
   "host_permissions": ["<all_urls>"],
   "background": {
-    "service_worker": "src/background/index.js",
-    "type": "module",
-    "persistent": true
+    "service_worker": "src/background/index.js"
   },
   "action": {
     "default_popup": "src/popup/index.html",
@@ -41,26 +39,24 @@
       "matches": ["<all_urls>"],
       "js": ["src/content/index.js"],
       "run_at": "document_start",
-      "all_frames": false,
-      "type": "module"
+      "all_frames": false
     },
     {
       "matches": ["<all_urls>"],
       "js": ["src/content/iframeSidebar.js"],
       "run_at": "document_end",
-      "all_frames": false,
-      "type": "module"
+      "all_frames": false
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/assets/*", "*.js", "_*.js", "vendor-*.js"],
-      "type": "module",
-      "matches": ["<all_urls>"]
-    },
-    {
-      "resources": ["src/sidebar/*", "src/sidebar/index.html", "sidebar.js", "sidebar/*"],
-      "type": "module",
+      "resources": [
+        "src/assets/*",
+        "src/content/ajaxHook.js",
+        "src/sidebar/index.html",
+        "static/css/*",
+        "static/js/*"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
