@@ -1,5 +1,4 @@
 import {
-  chromeLocalStorage,
   chromeSessionStorage,
   customEventSend,
 } from '@/utils';

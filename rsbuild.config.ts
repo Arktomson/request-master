@@ -1,10 +1,10 @@
-import { defineConfig } from '@rsbuild/core';
+import { defineConfig, type RsbuildConfig } from '@rsbuild/core';
 import { pluginVue } from '@rsbuild/plugin-vue';
 import { pluginSass } from '@rsbuild/plugin-sass';
 import { resolve } from 'path';
 import ElementPlus from 'unplugin-element-plus/rspack';
 
-export default defineConfig(({ env, envMode, command }) => {
+export default (defineConfig(({ env, envMode, command }) => {
   const isDev = env === 'development';
   const isProd = env === 'production';
 
@@ -116,24 +116,19 @@ export default defineConfig(({ env, envMode, command }) => {
             ],
           }),
           ElementPlus({
-            include: [/\.vue$/, /\.vue\?vue/, /\.md$/, /\.vue\.[tj]sx?\?vue/]
-          }),
+            include: [/\.vue$/, /\.vue\?vue/, /\.md$/, /\.vue\.[tj]sx?\?vue/],
+          })
         );
-
-        config.output.filename = '[name].js';
-
         config.stats = {
-          preset: 'normal',   // 基础信息
-          colors: true,       // 彩色输出
-          assets: true,       // ⬅️ 关键：列出所有文件 + size
-          modules: false,     // 不列模块
-          entrypoints: true,  // 显示每个入口包含哪些文件
-          performance: true,  // 报告超过 performance.hints 阈值的文件
-          assetFilter: (assetName) =>
-            !assetName.endsWith('.map'), // 可选：别把 .map 也打印
+          preset: 'normal', // 基础信息
+          colors: true, // 彩色输出
+          assets: true, // ⬅️ 关键：列出所有文件 + size
+          modules: false, // 不列模块
+          entrypoints: true, // 显示每个入口包含哪些文件
+          performance: true, // 报告超过 performance.hints 阈值的文件
+          assetFilter: (assetName) => !assetName.endsWith('.map'), // 可选：别把 .map 也打印
         };
-        // 禁用默认的 static 目录分组
-
+        config.output.filename = '[name].js';
         return config;
       },
     },
@@ -144,5 +139,5 @@ export default defineConfig(({ env, envMode, command }) => {
         strategy: 'all-in-one',
       },
     },
-  };
-});
+  }
+}) as RsbuildConfig);

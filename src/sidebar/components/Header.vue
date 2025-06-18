@@ -14,7 +14,7 @@ import { onMounted, ref } from 'vue'
 import { ElSwitch } from 'element-plus';
 const sidebarIfCacheState = ref(false);
 
-function handleSidebarIfCacheStateChange(value: boolean) {
+function handleSidebarIfCacheStateChange(value: boolean | string | number) {
   chromeLocalStorage.set({
     'sidebarIfCacheState': value
   })
