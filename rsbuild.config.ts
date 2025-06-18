@@ -128,6 +128,7 @@ export default (defineConfig(({ env, envMode, command }) => {
           performance: true, // 报告超过 performance.hints 阈值的文件
           assetFilter: (assetName) => !assetName.endsWith('.map'), // 可选：别把 .map 也打印
         };
+        // 确保 content scripts 等特殊入口点能正确输出文件名
         config.output.filename = '[name].js';
         return config;
       },

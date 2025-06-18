@@ -41,7 +41,7 @@
               placement="top"
               :show-after="500"
             >
-              <span>{{ getUrlPath(item.url) }}</span>
+              <span>{{ item.path }}</span>
             </el-tooltip>
           </div>
           <div class="method-column">
@@ -87,7 +87,6 @@ import {
 } from 'element-plus';
 import {
   chromeLocalStorage,
-  getUrlPath,
   messageToContent,
 } from '@/utils';
 import { Edit, Delete } from '@element-plus/icons-vue';
@@ -138,8 +137,8 @@ const handleAddMock = () => {
   emit('add-mock');
 };
 
-const handleMockToggle = (enabled: boolean) => {
-  emit('mock-toggle', enabled);
+const handleMockToggle = (enabled: boolean | string | number) => {
+  emit('mock-toggle', enabled as boolean);
   ElMessage.success(enabled ? 'Mock已开启' : 'Mock已关闭');
 };
 

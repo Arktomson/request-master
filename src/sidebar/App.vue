@@ -72,17 +72,14 @@ import {
   onMounted,
   onUnmounted,
   toRaw,
-  nextTick,
-  watchEffect,
   watch,
 } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
   chromeLocalStorage,
-  chromeSessionStorage,
+  urlApart,
   messageToContent,
 } from '@/utils';
-import stringify from 'json-stable-stringify';
 // 导入组件
 import Header from './components/Header.vue';
 import SidebarMenu from './components/SidebarMenu.vue';
@@ -534,15 +531,19 @@ const initLayout = () => {
   }
 };
 
+const preProcessRequestData = (data: any) => {
+  return {
+    ...data,
+    ...urlApart(data.url),
+  };
+};
 // 设置消息监听
 const setupMessageListener = () => {
-  // 直接监听background发送的消息
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'new_request_data') {
-      // 直接添加新的请求数据
-      requests.value.push(message.data);
+      requests.value.push(preProcessRequestData(message.data));
     } else if (message.type === 'batch_request_data') {
-      requests.value = message.data;
+      requests.value = message.data.map(preProcessRequestData);
     }
   });
 };

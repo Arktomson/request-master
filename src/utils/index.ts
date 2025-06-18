@@ -96,13 +96,21 @@ export function customEventSend(eventName: string, data: Record<string, any>) {
     })
   );
 }
-export function getUrlPath(url: string) {
+export function urlApart(url: string) {
   try {
     const urlObj = new URL(url);
-    return urlObj.pathname + urlObj.search + urlObj.hash;
+    return {
+      path: urlObj.pathname,
+      query: urlObj.search,
+      hash: urlObj.hash,
+    }
   } catch {
     // 如果URL格式不正确，返回原始URL
-    return url;
+    return {
+      path: url,
+      query: '',
+      hash: '',
+    };
   }
 }
 export { default as RequestCacheDB } from './requestDB';

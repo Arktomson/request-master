@@ -51,7 +51,7 @@
             placement="top"
             :show-after="300"
           >
-            <span>{{ getUrlPath(item.req.url) }}</span>
+            <span>{{ item.req.path }}</span>
           </el-tooltip>
         </div>
         <div class="time-column">{{ formatTime(item.req.time) }}</div>
@@ -79,7 +79,6 @@
 import { ref, computed } from 'vue';
 import { ElMessage, ElButton, ElInput, ElTag, ElTooltip, ElIcon } from 'element-plus';
 import { Delete } from '@element-plus/icons-vue';
-import { getUrlPath } from '@/utils';
 
 // 接收父组件传递的属性
 const props = defineProps<{
