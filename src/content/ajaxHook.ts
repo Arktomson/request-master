@@ -60,10 +60,20 @@ function filterSituation(resp) {
 
 function beginHook() {
   let mockList = [];
+  let mockMap = new Map();
   let mockEnabled = true;
   let monitorEnabled = true;
   let disasterRecoveryProcessing = false;
   let urlMatch = false;
+
+  const buildMockMap = (list: any[]) => {
+    mockMap.clear();
+    list.forEach((item: any) => {
+      if (item && item.cacheKey) {
+        mockMap.set(item.cacheKey, item);
+      }
+    });
+  };
 
   console.log('启动ajaxHook', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
   console.log('monitorEnabled', monitorEnabled);
@@ -81,6 +91,8 @@ function beginHook() {
     mockList = mockListInit;
     mockEnabled = mockEnabledInit;
     urlMatch = urlMatchInit;
+    
+    buildMockMap(mockList);
   }
   console.log(
     monitorEnabled,
@@ -110,17 +122,14 @@ function beginHook() {
               let isMock = false;
               let mockData = json;
               if (mockEnabled) {
-                if (mockList.length > 0) {
-                  const mock = mockList.find(
-                    (item: any) => item.cacheKey === cacheKey
-                  );
-                  if (mock) {
-                    json = mock.response;
-                    mockData = mock.response;
-                    resp.status = 200;
-                    resp.statusText = 'OK';
-                    isMock = true;
-                  }
+                // 🚀 性能优化：使用Map查找，时间复杂度从O(n)降到O(1)
+                const mock = mockMap.get(cacheKey);
+                if (mock) {
+                  json = mock.response;
+                  mockData = mock.response;
+                  resp.status = 200;
+                  resp.statusText = 'OK';
+                  isMock = true;
                 }
               }
               console.log('发送数据 currentRequest');
@@ -132,7 +141,7 @@ function beginHook() {
                   params: request.data,
                   response: mockData,
                   cacheKey: cacheKey,
-                  headers: request.headers,
+                  headers: resp.responseHeaders,
                   time: new Date().getTime(),
                   isMock,
                 },
@@ -184,9 +193,11 @@ function beginHook() {
     });
 
     window.addEventListener('content_to_ajaxHook', (event) => {
-      const { detail: { type, message } = {} } = event || {};
+      const { detail: { type, action, message } = {} } = event || {};
       if (type === 'mockList_change') {
         mockList = message;
+        // 🚀 性能优化：同时更新mockMap索引，保持高效查找
+        buildMockMap(mockList);
       } else if (type === 'mockEnabled_change') {
         mockEnabled = message;
         console.log('mockEnabled_change ajaxHook', message);

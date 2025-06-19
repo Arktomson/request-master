@@ -13,11 +13,10 @@
         <!-- 请求监测区域 -->
         <MonitorSection
           ref="monitorSectionRef"
-          :requests="requests"
+          :requestList="requestList"
           :selectedRequestIndex="selectedRequestIndex"
           @select-request="selectRequest"
-          @clear-requests="handleClearRequests"
-          @add-mock="showAddMockDialog"
+          @clear-requestList="handleClearRequests"
           @delete-request="deleteRequest"
           @add-to-mock="addRequestToMock"
         />
@@ -33,8 +32,6 @@
           @select-mock="selectMock"
           @edit-mock="editMock"
           @delete-mock="deleteMock"
-          @add-mock="showAddMockDialog"
-          @mock-toggle="handleMockToggle"
           @clear-all-mocks="handleClearAllMocks"
         />
       </div>
@@ -45,13 +42,11 @@
       <!-- 右侧JSON查看器 -->
       <JsonViewer
         ref="jsonViewerRef"
-        :content="jsonContent"
-        :payload="payloadContent"
-        :headers="headersContent"
-        :isSelected="!!selectedRequest"
-        :isMockSelected="!!selectedMock"
-        @update:content="(val) => (jsonContent = val)"
-        @save="saveJsonContent"
+        :data="currentSelectedData"
+        :type="currentSelectedType"
+        @save-response="handleSaveResponse"
+        @save-query="handleSaveQuery"
+        @save-headers="handleSaveHeaders"
       />
     </div>
 
@@ -70,16 +65,11 @@ import {
   ref,
   computed,
   onMounted,
-  onUnmounted,
   toRaw,
   watch,
 } from 'vue';
-import { ElMessage } from 'element-plus';
-import {
-  chromeLocalStorage,
-  urlApart,
-  messageToContent,
-} from '@/utils';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { chromeLocalStorage, urlApart, messageToContent } from '@/utils';
 // 导入组件
 import Header from './components/Header.vue';
 import SidebarMenu from './components/SidebarMenu.vue';
@@ -88,11 +78,12 @@ import MockSection from './components/MockSection.vue';
 import JsonViewer from './components/JsonViewer.vue';
 import MockDialog from './components/MockDialog.vue';
 import ResizeHandle from './components/ResizeHandle.vue';
+import { omit } from 'lodash-es';
 
 // 状态
 const activeTab = ref('monitor');
 const mockList = ref<any[]>([]);
-const requests = ref<any[]>([]);
+const requestList = ref<any[]>([]);
 const selectedRequestIndex = ref(-1);
 const selectedMockIndex = ref(-1);
 const mockDialogVisible = ref(false);
@@ -105,9 +96,6 @@ const currentMock = ref({
   response: '{}',
 });
 
-const jsonContent = ref('');
-const payloadContent = ref('');
-const headersContent = ref('');
 
 // DOM引用
 const monitorSectionRef = ref();
@@ -116,22 +104,32 @@ const jsonViewerRef = ref();
 
 // 计算属性
 const selectedRequest = computed(() => {
-  if (
-    selectedRequestIndex.value >= 0 &&
-    requests.value.length > selectedRequestIndex.value
-  ) {
-    return requests.value[selectedRequestIndex.value];
+  const selIdx = selectedRequestIndex.value;
+  return selIdx < 0 ? null : requestList.value[selIdx];
+});
+
+const selectedMock = computed(() => {
+  const selIdx = selectedMockIndex.value;
+  return selIdx < 0 ? null : mockList.value[selIdx];
+});
+
+// 当前选中的数据和类型
+const currentSelectedData = computed(() => {
+  if (selectedMock.value) {
+    return selectedMock.value;
+  }
+  if (selectedRequest.value) {
+    return selectedRequest.value;
   }
   return null;
 });
 
-const selectedMock = computed(() => {
-  if (
-    Array.isArray(mockList.value) &&
-    selectedMockIndex.value >= 0 &&
-    selectedMockIndex.value < mockList.value.length
-  ) {
-    return mockList.value[selectedMockIndex.value];
+const currentSelectedType = computed(() => {
+  if (selectedMock.value) {
+    return 'mock';
+  }
+  if (selectedRequest.value) {
+    return 'request';
   }
   return null;
 });
@@ -140,146 +138,14 @@ const selectedMock = computed(() => {
 const selectRequest = (index: number) => {
   selectedRequestIndex.value = index;
   selectedMockIndex.value = -1;
-  const request = requests.value[index];
-  const response = request.response;
-  const params = request.params;
-  const headers = request.headers;
-  if (!response) {
-    jsonContent.value = '';
-    payloadContent.value = '';
-    headersContent.value = '';
-    return;
-  }
-
-  try {
-    // 如果response已经是对象，直接格式化
-    if (typeof response === 'object') {
-      jsonContent.value = JSON.stringify(response, null, 2);
-    }
-  } catch (error) {
-    // 如果解析失败，直接显示原内容
-    jsonContent.value =
-      typeof response === 'string'
-        ? response
-        : JSON.stringify(response, null, 2);
-  }
-
-  // 更新payload和headers
-  if (params) {
-    try {
-      let paramsObj = typeof params === 'string' ? JSON.parse(params) : params;
-      payloadContent.value = JSON.stringify(paramsObj, null, 2);
-    } catch (e) {
-      payloadContent.value = String(params);
-    }
-  } else {
-    payloadContent.value = '';
-  }
-
-  if (headers) {
-    try {
-      let headersObj =
-        typeof headers === 'string' ? JSON.parse(headers) : headers;
-      headersContent.value = JSON.stringify(headersObj, null, 2);
-    } catch (e) {
-      headersContent.value = String(headers);
-    }
-  } else {
-    headersContent.value = '';
-  }
 };
 
 const selectMock = (index: number) => {
-  // 检查索引是否有效
-  if (index < 0 || index >= mockList.value.length) {
-    return;
-  }
-
   selectedMockIndex.value = index;
   selectedRequestIndex.value = -1;
-  const mock = mockList.value[index];
-
-  if (!mock || !mock.response) {
-    jsonContent.value = '';
-    payloadContent.value = '';
-    headersContent.value = '';
-    return;
-  }
-  const params = mock.params;
-  const headers = mock.headers;
-  try {
-    // 如果response已经是对象，直接格式化
-    if (typeof mock.response === 'object') {
-      jsonContent.value = JSON.stringify(mock.response, null, 2);
-    }
-    if (params) {
-      let paramsObj = typeof params === 'string' ? JSON.parse(params) : params;
-      payloadContent.value = JSON.stringify(toRaw(paramsObj), null, 2);
-    }
-    if (headers) {
-      let headersObj =
-        typeof headers === 'string' ? JSON.parse(headers) : headers;
-      headersContent.value = JSON.stringify(headersObj, null, 2);
-    }
-  } catch (error) {
-    // 如果解析失败，直接显示原内容
-    jsonContent.value =
-      typeof mock.response === 'string'
-        ? mock.response
-        : JSON.stringify(mock.response, null, 2);
-  }
-};
-
-const showAddMockDialog = () => {
-  isEditMode.value = false;
-
-  // 如果有选中的请求，使用它的信息预填
-  if (selectedRequest.value) {
-    const req = selectedRequest.value;
-
-    // 处理响应数据
-    let responseData = '{}';
-    if (req.response) {
-      if (typeof req.response === 'object') {
-        responseData = JSON.stringify(req.response, null, 2);
-      } else {
-        responseData = req.response;
-      }
-    } else if (jsonContent.value) {
-      responseData = jsonContent.value;
-    }
-
-    currentMock.value = {
-      url: req.url,
-      method: req.method,
-      enabled: true,
-      response: responseData,
-    };
-  } else {
-    currentMock.value = {
-      url: '',
-      method: 'GET',
-      enabled: true,
-      response: '{}',
-    };
-  }
-
-  mockDialogVisible.value = true;
 };
 
 const editMock = (index: number) => {
-  // 确保mockList是数组
-  if (!Array.isArray(mockList.value)) {
-    mockList.value = [];
-    return;
-  }
-
-  // 检查索引是否有效
-  if (index < 0 || index >= mockList.value.length) {
-    ElMessage.error('无效的索引');
-    return;
-  }
-
   isEditMode.value = true;
   editingIndex.value = index;
   currentMock.value = { ...mockList.value[index] };
@@ -339,14 +205,7 @@ const saveMock = (mockData: any) => {
 };
 
 const addRequestToMock = async (index: number) => {
-  const request = requests.value[index];
-  if (!request) return;
-
-  // 确保mockList是数组
-  if (!Array.isArray(mockList.value)) {
-    mockList.value = [];
-  }
-
+  const request = requestList.value[index];
   // 检查是否已存在相同URL和方法的Mock
   const existingMock = mockList.value.find(
     (mock) => mock.cacheKey === request.cacheKey
@@ -357,109 +216,134 @@ const addRequestToMock = async (index: number) => {
     return;
   }
 
-  const { response, cacheKey, url, method, params, headers } = request;
+  const { response } = request;
   // 创建新的Mock配置
   const newMock = {
-    cacheKey: cacheKey,
+    ...omit(request, ['isMock']),
     response: toRaw(response),
-    url: url,
-    method: method,
-    params: params,
-    headers: headers,
   };
 
   // 添加到Mock列表
   mockList.value.push(newMock);
-  const curMockList = (await chromeLocalStorage.get('mockList')) || [];
-  curMockList.push(newMock);
-  chromeLocalStorage.set({ mockList: curMockList });
   ElMessage.success('已添加到Mock列表');
 };
 
-const deleteMock = async (cacheKey: string) => {
+const deleteMock = async (index: number) => {
   selectedMockIndex.value = -1;
-  jsonContent.value = '';
-  payloadContent.value = '';
-  headersContent.value = '';
-  // 确保mockList是数组
-  if (!Array.isArray(mockList.value)) {
-    mockList.value = [];
-    return;
-  }
-
-  const curMockList = (await chromeLocalStorage.get('mockList')) || [];
-  const newMockList = curMockList.filter(
-    (item: any) => item.cacheKey !== cacheKey
-  );
-  chromeLocalStorage.set({ mockList: newMockList });
-  mockList.value = newMockList;
+  mockList.value.splice(index, 1);
   ElMessage.success('删除成功');
 };
 
-const handleMockToggle = (enabled: boolean) => {
-  // Mock总开关的处理逻辑已经在MockSection组件内部处理
-  // 这里可以添加其他需要的逻辑，比如通知content script等
-};
-
 const handleClearAllMocks = async () => {
-  // 清空选中状态和显示内容
-  selectedMockIndex.value = -1;
-  jsonContent.value = '';
-  payloadContent.value = '';
-  headersContent.value = '';
-
-  // 清空 mock 列表
-  mockList.value = [];
-
-  // 清空存储
-  await chromeLocalStorage.set({ mockList: [] });
-
-  ElMessage.success('已清除所有Mock数据');
+  ElMessageBox.confirm('确定要清除所有Mock数据吗？此操作不可恢复。', '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+    .then(async () => {
+      selectedMockIndex.value = -1;
+      mockList.value = [];
+      ElMessage.success('已清除所有Mock数据');
+    })
+    .catch(() => {
+      // 用户取消操作，不做任何处理
+    });
 };
 
 const handleClearRequests = () => {
-  requests.value = [];
+  requestList.value = [];
   selectedRequestIndex.value = -1;
-  jsonContent.value = '';
-  payloadContent.value = '';
-  headersContent.value = '';
-
-  // 清空两个存储位置的数据
-  // chromeSessionStorage.set({
-  //   curCacheData: [],
-  // });
-
-  ElMessage.success('记录已清空');
+  ElMessage.success('记录已清空!');
 };
 
 const deleteRequest = (index: number) => {
   // 如果删除的是当前选中的
   if (selectedRequestIndex.value === index) {
     selectedRequestIndex.value = -1;
-    jsonContent.value = '';
-    payloadContent.value = '';
-    headersContent.value = '';
   }
-  requests.value.splice(index, 1);
+  requestList.value.splice(index, 1);
+  ElMessage.success('请求已删除');
 };
 
-const saveJsonContent = async (content: string) => {
-  // 如果是编辑mock的响应
-  if (
-    selectedMock.value &&
-    Array.isArray(mockList.value) &&
-    selectedMockIndex.value >= 0 &&
-    selectedMockIndex.value < mockList.value.length
-  ) {
+// 处理响应体保存
+const handleSaveResponse = async (content: string) => {
+  // 只处理Mock的响应保存
+  if (currentSelectedType.value === 'mock' && selectedMock.value) {
     const parseContent = JSON.parse(content);
-    const { cacheKey } = mockList.value[selectedMockIndex.value];
+    const { cacheKey } = selectedMock.value;
     const curMockList = (await chromeLocalStorage.get('mockList')) || [];
+
     curMockList.forEach((item: any) => {
       if (item.cacheKey === cacheKey) {
         item.response = parseContent;
       }
     });
+
     mockList.value[selectedMockIndex.value].response = parseContent;
+    chromeLocalStorage.set({ mockList: curMockList });
+  }
+};
+
+// 处理Query参数保存
+const handleSaveQuery = async (content: string) => {
+  // 只处理Mock的Query保存
+  if (currentSelectedType.value === 'mock' && selectedMock.value) {
+    const { cacheKey } = selectedMock.value;
+    const curMockList = (await chromeLocalStorage.get('mockList')) || [];
+
+    curMockList.forEach((item: any) => {
+      if (item.cacheKey === cacheKey) {
+        // 如果是URL search格式，直接保存
+        if (content.startsWith('?')) {
+          item.query = content;
+        } else {
+          // 如果是其他格式，尝试解析后保存
+          try {
+            const parsed = JSON.parse(content);
+            item.params = parsed;
+            // 同时更新query字段为URL search格式
+            const searchParams = new URLSearchParams();
+            Object.entries(parsed).forEach(([key, value]) => {
+              searchParams.append(key, String(value));
+            });
+            item.query = '?' + searchParams.toString();
+          } catch (e) {
+            // 解析失败时保存原始内容到params
+            item.params = content;
+          }
+        }
+      }
+    });
+
+    mockList.value[selectedMockIndex.value] = {
+      ...curMockList.find((item: any) => item.cacheKey === cacheKey),
+    };
+    chromeLocalStorage.set({ mockList: curMockList });
+  }
+};
+
+// 处理Headers保存
+const handleSaveHeaders = async (content: string) => {
+  // 只处理Mock的Headers保存
+  if (currentSelectedType.value === 'mock' && selectedMock.value) {
+    const { cacheKey } = selectedMock.value;
+    const curMockList = (await chromeLocalStorage.get('mockList')) || [];
+
+    curMockList.forEach((item: any) => {
+      if (item.cacheKey === cacheKey) {
+        try {
+          const parseContent = JSON.parse(content);
+          item.headers = parseContent;
+        } catch (e) {
+          // 解析失败时保存原始内容
+          item.headers = content;
+        }
+      }
+    });
+
+    mockList.value[selectedMockIndex.value] = {
+      ...curMockList.find((item: any) => item.cacheKey === cacheKey),
+    };
     chromeLocalStorage.set({ mockList: curMockList });
   }
 };
@@ -491,8 +375,8 @@ const handleVerticalResize = (size: number) => {
 };
 
 const handleHorizontalResize = (size: number) => {
-  const monitorSection = monitorSectionRef.value?.monitorSectionRef;
-  const mockSection = mockSectionRef.value?.mockSectionRef;
+  const monitorSection = monitorSectionRef.value?.rootElement;
+  const mockSection = mockSectionRef.value?.rootElement;
   const container = monitorSection?.parentElement;
 
   if (monitorSection && mockSection && container) {
@@ -537,32 +421,39 @@ const preProcessRequestData = (data: any) => {
     ...urlApart(data.url),
   };
 };
-// 设置消息监听
-const setupMessageListener = () => {
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'new_request_data') {
-      requests.value.push(preProcessRequestData(message.data));
-    } else if (message.type === 'batch_request_data') {
-      requests.value = message.data.map(preProcessRequestData);
-    }
+
+const onPageHide = () => {
+  window.removeEventListener('resize', initLayout);
+  chromeLocalStorage.set({
+    mockList: toRaw(mockList.value),
   });
 };
 
+// 设置消息监听
+const setupMessageListener = () => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'new_request_data') {
+        requestList.value.push(preProcessRequestData(message.data));
+      } else if (message.type === 'batch_request_data') {
+        requestList.value = message.data.map(preProcessRequestData);
+      }
+     sendResponse({ success: true });
+  });
+
+  window.addEventListener('pagehide', onPageHide);
+};
+
 const notifyMockList = (val: any) => {
-  messageToContent(
-    {
-      type: 'mockList_change',
-      data: val,
-    },
-    () => {}
-  );
+  messageToContent({
+    type: 'mockList_change',
+    data: val,
+  });
 };
 
 // 监听 mockList 深度变化，保持存储和注入脚本同步
 watch(
   mockList,
   (val) => {
-    // chromeLocalStorage.set({ mockList: val });
     notifyMockList(val);
   },
   { deep: true }
@@ -572,16 +463,12 @@ watch(
 onMounted(async () => {
   // 加载Mock列表
   const storedMockList = (await chromeLocalStorage.get('mockList')) || [];
-  if (Array.isArray(storedMockList)) {
-    mockList.value = storedMockList;
-  } else {
-    mockList.value = [];
-  }
+  mockList.value = storedMockList;
 
-  // 等待DOM渲染完成后初始化布局
+  // // 等待DOM渲染完成后初始化布局
   setTimeout(initLayout, 100);
 
-  // 监听窗口大小变化，重新调整布局
+  // // 监听窗口大小变化，重新调整布局
   window.addEventListener('resize', initLayout);
 
   // 设置消息监听器
@@ -590,11 +477,6 @@ onMounted(async () => {
   messageToContent({
     type: 'sidebar_ready',
   });
-});
-
-onUnmounted(() => {
-  // 移除事件监听器
-  window.removeEventListener('resize', initLayout);
 });
 </script>
 

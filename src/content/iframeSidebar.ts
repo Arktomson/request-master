@@ -219,6 +219,7 @@ class IframeSidebar {
 
   private destroySidebar() {
     
+    console.log('销毁侧边栏')
     const container = document.getElementById(
       'request-cache-sidebar-container'
     );
@@ -251,19 +252,20 @@ class IframeSidebar {
   private setupListeners() {
     // 监听来自后台或其他地方的消息
     chrome.runtime.onMessage.addListener(
-      async (message, sender, sendResponse) => {
-        if (message.type === 'toggle_sidebar') {
-          // 根据操作类型决定是隐藏还是销毁
-          const sidebarIfCacheState = await chromeLocalStorage.get(
-            'sidebarIfCacheState'
-          );
-          this.toggle(
-            message.visible,
-            sidebarIfCacheState ? 'hide' : 'destroy'
-          );
-          sendResponse({ success: true });
-        }
-        return true;
+      (message, sender, sendResponse) => {
+        return new Promise(async (resolve): Promise<any> => {
+          if (message.type === 'toggle_sidebar') {
+            // 根据操作类型决定是隐藏还是销毁
+            const sidebarIfCacheState = await chromeLocalStorage.get(
+              'sidebarIfCacheState'
+            );
+            this.toggle(
+              message.visible,
+              sidebarIfCacheState ? 'hide' : 'destroy'
+            );
+          }
+          resolve({ success: true });
+        });
       }
     );
 

@@ -36,15 +36,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["http://*/*", "https://*/*"],
       "js": ["src/content/index.js"],
       "run_at": "document_start",
       "all_frames": false
     },
     {
-      "matches": ["<all_urls>"],
+      "matches": ["http://*/*", "https://*/*"],
       "js": ["src/content/iframeSidebar.js"],
-      "run_at": "document_end",
+      "run_at": "document_idle",
       "all_frames": false
     }
   ],
@@ -57,7 +57,7 @@
         "static/css/*",
         "static/js/*"
       ],
-      "matches": ["<all_urls>"]
+      "matches": ["http://*/*", "https://*/*"]
     }
   ],
   "icons": {

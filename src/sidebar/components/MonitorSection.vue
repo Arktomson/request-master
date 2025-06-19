@@ -3,11 +3,8 @@
     <div class="section-header">
       <div class="section-title">监控记录</div>
       <div class="monitor-actions">
-        <el-button type="primary" size="small" @click="emit('clear-requests')">
+        <el-button type="primary" size="small" @click="emit('clear-requestList')">
           清空记录
-        </el-button>
-        <el-button type="success" size="small" @click="() => emit('add-mock')">
-          添加Mock
         </el-button>
       </div>
     </div>
@@ -18,7 +15,7 @@
         v-model="searchQuery"
         size="small"
         clearable
-        prefix-icon="Search"
+        :prefix-icon="Search"
         placeholder="搜索 URL (模糊匹配)"
       />
     </div>
@@ -41,7 +38,7 @@
           selected: props.selectedRequestIndex === item.originalIndex,
           'is-mock': item.req.isMock === true,
         }"
-        @click="selectRequest(item.originalIndex)"
+        @click="emit('select-request', item.originalIndex)"
         @dblclick="emit('add-to-mock', item.originalIndex)"
       >
         <div class="url-column text-ellipsis">
@@ -65,7 +62,7 @@
             type="danger"
             size="small"
             circle
-            @click.stop="deleteRequest(item.originalIndex)"
+            @click.stop="emit('delete-request', item.originalIndex)"
           >
             <el-icon><Delete /></el-icon>
           </el-button>
@@ -77,20 +74,24 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { ElMessage, ElButton, ElInput, ElTag, ElTooltip, ElIcon } from 'element-plus';
-import { Delete } from '@element-plus/icons-vue';
+import { ElButton, ElInput, ElTag, ElTooltip, ElIcon } from 'element-plus';
+import { Delete ,Search } from '@element-plus/icons-vue';
+import { getMethodType } from '@/utils';
 
-// 接收父组件传递的属性
+
+interface RequestWithIndex {
+  req: any;
+  originalIndex: number;
+}
+
 const props = defineProps<{
-  requests: any[];
+  requestList: any[];
   selectedRequestIndex: number;
 }>();
 
-// 定义事件
 const emit = defineEmits<{
   (e: 'select-request', index: number): void;
-  (e: 'clear-requests'): void;
-  (e: 'add-mock'): void;
+  (e: 'clear-requestList'): void;
   (e: 'delete-request', index: number): void;
   (e: 'add-to-mock', index: number): void;
 }>();
@@ -98,14 +99,9 @@ const emit = defineEmits<{
 // 搜索
 const searchQuery = ref('');
 
-interface RequestWithIndex {
-  req: any;
-  originalIndex: number;
-}
-
 const filteredRequests = computed<RequestWithIndex[]>(() => {
   const q = searchQuery.value.toLowerCase();
-  return props.requests.flatMap((req: any, i: number) => {
+  return props.requestList.flatMap((req: any, i: number) => {
     if (!q || req.url?.toLowerCase().includes(q)) {
       return { req, originalIndex: i } as RequestWithIndex;
     }
@@ -125,27 +121,9 @@ const formatTime = (timestamp: number) => {
     .padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
 };
 
-const getMethodType = (method: string) => {
-  const methodLower = method.toLowerCase();
-  if (methodLower === 'get') return 'info';
-  if (methodLower === 'post') return 'success';
-  if (methodLower === 'put') return 'warning';
-  if (methodLower === 'delete') return 'danger';
-  return 'info';
-};
-
-const selectRequest = (index: number) => {
-  emit('select-request', index);
-};
-
-const deleteRequest = (index: number) => {
-  emit('delete-request', index);
-  ElMessage.success('请求已删除');
-};
-
 // 暴露给父组件的方法和属性
 defineExpose({
-  monitorSectionRef,
+  rootElement: monitorSectionRef,
 });
 </script>
 

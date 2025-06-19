@@ -5,10 +5,7 @@
       <div class="mock-actions">
         <span style="margin-right: 8px">Mock功能</span>
         <el-switch v-model="mockEnabled" @change="handleMockToggle" />
-        <el-button type="primary" size="small" @click="handleAddMock">
-          添加Mock
-        </el-button>
-        <el-button type="danger" size="small" @click="handleClearAllMocks">
+        <el-button type="danger" size="small" @click="emit('clear-all-mocks')">
           清除所有
         </el-button>
       </div>
@@ -32,7 +29,7 @@
           :key="index"
           class="mock-item"
           :class="{ selected: selectedMockIndex === index }"
-          @click="selectMock(index)"
+          @click="emit('select-mock', index)"
         >
           <div class="url-column text-ellipsis">
             <el-tooltip
@@ -54,7 +51,7 @@
               type="primary"
               size="small"
               circle
-              @click.stop="editMock(index)"
+              @click.stop="emit('edit-mock', index)"
             >
               <el-icon><Edit /></el-icon>
             </el-button>
@@ -62,7 +59,7 @@
               type="danger"
               size="small"
               circle
-              @click.stop="deleteMock(item.cacheKey)"
+              @click.stop="emit('delete-mock', index)"
             >
               <el-icon><Delete /></el-icon>
             </el-button>
@@ -74,10 +71,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watchEffect, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import {
   ElMessage,
-  ElMessageBox,
   ElSwitch,
   ElButton,
   ElTag,
@@ -87,6 +83,7 @@ import {
 } from 'element-plus';
 import {
   chromeLocalStorage,
+  getMethodType,
   messageToContent,
 } from '@/utils';
 import { Edit, Delete } from '@element-plus/icons-vue';
@@ -101,9 +98,7 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'select-mock', index: number): void;
   (e: 'edit-mock', index: number): void;
-  (e: 'delete-mock', cacheKey: string): void;
-  (e: 'add-mock'): void;
-  (e: 'mock-toggle', enabled: boolean): void;
+  (e: 'delete-mock', index: number): void;
   (e: 'clear-all-mocks'): void;
 }>();
 
@@ -111,50 +106,14 @@ const emit = defineEmits<{
 const mockSectionRef = ref<HTMLElement | null>(null);
 const mockEnabled = ref(false);
 
-// 方法
-const getMethodType = (method: string) => {
-  const methodLower = method.toLowerCase();
-  if (methodLower === 'get') return 'info';
-  if (methodLower === 'post') return 'success';
-  if (methodLower === 'put') return 'warning';
-  if (methodLower === 'delete') return 'danger';
-  return 'info';
-};
-
-const selectMock = (index: number) => {
-  emit('select-mock', index);
-};
-
-const editMock = (index: number) => {
-  emit('edit-mock', index);
-};
-
-const deleteMock = (cacheKey: string) => {
-  emit('delete-mock', cacheKey);
-};
-
-const handleAddMock = () => {
-  emit('add-mock');
-};
 
 const handleMockToggle = (enabled: boolean | string | number) => {
-  emit('mock-toggle', enabled as boolean);
+  messageToContent({
+    type: 'mockEnabled_change',
+    data: enabled,
+  });
+  chromeLocalStorage.set({ mockEnabled: enabled });
   ElMessage.success(enabled ? 'Mock已开启' : 'Mock已关闭');
-};
-
-const handleClearAllMocks = () => {
-  ElMessageBox.confirm('确定要清除所有Mock数据吗？此操作不可恢复。', '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  })
-    .then(() => {
-      emit('clear-all-mocks');
-      ElMessage.success('已清除所有Mock数据');
-    })
-    .catch(() => {
-      // 用户取消操作，不做任何处理
-    });
 };
 
 // 初始化Mock开关状态
@@ -163,20 +122,9 @@ onMounted(async () => {
   mockEnabled.value = storedMockEnabled === true;
 });
 
-watch(mockEnabled, (newVal) => {
-  chromeLocalStorage.set({ mockEnabled: newVal });
-  messageToContent(
-    {
-      type: 'mockEnabled_change',
-      data: newVal,
-    },
-    () => {}
-  );
-});
-
 // 暴露给父组件的方法和属性
 defineExpose({
-  mockSectionRef,
+  rootElement: mockSectionRef,
 });
 </script>
 

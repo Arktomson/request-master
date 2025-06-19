@@ -57,6 +57,7 @@ export default (defineConfig(({ env, envMode, command }) => {
     },
 
     output: {
+      sourceMap: isDev,
       // 根据环境设置输出目录
       distPath: {
         root: isProd ? 'dist-prod' : 'dist',
@@ -130,6 +131,10 @@ export default (defineConfig(({ env, envMode, command }) => {
         };
         // 确保 content scripts 等特殊入口点能正确输出文件名
         config.output.filename = '[name].js';
+        config.module.rules.push({
+          test: /\.worker\.js$/,
+          type: 'asset/resource',
+        });
         return config;
       },
     },

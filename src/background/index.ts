@@ -83,6 +83,7 @@ async function injectCfgToPage({
 }) {
   console.log('准备注入配置', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
   const config = await chromeLocalStorage.getAll();
+  console.log(config, 'config');
   const shouldInjectForThisUrl = shouldInjectForUrl(
     url,
     config.allowToInjectOrigin || []
@@ -144,15 +145,13 @@ function wireRuntimeMessaging() {
             (await chromeSessionStorage.get('curCacheData')) || [];
           curCacheData.push(oneRequestData);
           await chromeSessionStorage.set({ curCacheData });
-          sendResponse({ success: true });
         } else if (message.type === 'sidebar_state_changed') {
-          sendResponse({ success: true });
         } else {
-          sendResponse({ success: false, error: 'Unknown message type' });
         }
       } catch (e) {
         console.error('Background message error', e);
-        sendResponse({ success: false, error: String(e) });
+      } finally {
+        sendResponse({ success: true });
       }
     }
   );

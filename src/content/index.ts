@@ -1,7 +1,4 @@
-import {
-  chromeSessionStorage,
-  customEventSend,
-} from '@/utils';
+import { chromeSessionStorage, customEventSend } from '@/utils';
 import dayjs from 'dayjs';
 
 // 立即执行函数，用于防止重复执行
@@ -50,7 +47,7 @@ import dayjs from 'dayjs';
       //     type: 'init',
       //     message: res,
       //   });
-        
+
       // });
       handleEvent();
     } catch (error) {
@@ -62,10 +59,9 @@ import dayjs from 'dayjs';
     let hitCount = 0;
 
     chromeSessionStorage.set({ curCacheData: [] });
-    console.log('准备监听',dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'))
+    console.log('准备监听', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
     window.addEventListener('ajaxHook_to_content', async (event: any) => {
       const { type, message } = event.detail;
-      
 
       if (type === 'cache_hit') {
         hitCount++;
@@ -95,7 +91,6 @@ import dayjs from 'dayjs';
     // 处理来自popup的消息
     chrome.runtime.onMessage.addListener(
       (message: any, sender: any, sendResponse: any) => {
-        
         if (message.type === 'update_request_cache_data') {
           const { cacheKey, cacheResponse, cacheReqParams } = message.data;
           const requestCacheData = localStorage.getItem('request_cache_data');
@@ -110,7 +105,6 @@ import dayjs from 'dayjs';
                 'request_cache_data',
                 JSON.stringify(requestCacheDataObj)
               );
-              
             } catch (error) {
               console.error('更新缓存数据失败:', error);
             }
@@ -123,37 +117,34 @@ import dayjs from 'dayjs';
               data: pendingBatchProcessData,
             },
             (response) => {
-              
               pendingBatchProcessData = [];
             }
           );
-          
         } else if (message.type === 'mockList_change') {
           // 将最新的 mockList 转发给 ajaxHook 脚本
           customEventSend('content_to_ajaxHook', {
             type: 'mockList_change',
-            message: message.data || []
+            message: message.data || [],
           });
         } else if (message.type === 'mockEnabled_change') {
           customEventSend('content_to_ajaxHook', {
             type: 'mockEnabled_change',
-            message: message.data
+            message: message.data,
           });
         } else if (message.type === 'monitorEnabled_change') {
           customEventSend('content_to_ajaxHook', {
             type: 'monitorEnabled_change',
-            message: message.data
+            message: message.data,
           });
         } else if (message.type === 'disasterRecoveryProcessing_change') {
           customEventSend('content_to_ajaxHook', {
             type: 'disasterRecoveryProcessing_change',
-            message: message.data
+            message: message.data,
           });
-        }  else if (message.type === 'copy_json') {
+        } else if (message.type === 'copy_json') {
           navigator.clipboard.writeText(message.data);
-          sendResponse({ success: true });
         }
-        // 不返回 true，表示同步处理
+        sendResponse({ success: true });
       }
     );
   }

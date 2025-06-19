@@ -100,7 +100,8 @@ export function urlApart(url: string) {
   try {
     const urlObj = new URL(url);
     return {
-      path: urlObj.pathname,
+      path: `${urlObj.pathname}${urlObj.search}${urlObj.hash}`,
+      purePath: urlObj.pathname,
       query: urlObj.search,
       hash: urlObj.hash,
     }
@@ -110,7 +111,24 @@ export function urlApart(url: string) {
       path: url,
       query: '',
       hash: '',
+      purePath: '',
     };
   }
+}
+export function getMethodType(method: string): any {
+  const methodLower = method.toLowerCase();
+  const methodMap: Record<string, string> = {
+    get: 'info',
+    post: 'success',
+    put: 'warning',
+    delete: 'danger',
+    patch: 'warning',
+    options: 'info',
+    head: 'info',
+    connect: 'info',
+    trace: 'info',
+    any: 'info',
+  };
+  return methodMap[methodLower] || 'info';
 }
 export { default as RequestCacheDB } from './requestDB';
