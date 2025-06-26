@@ -61,7 +61,7 @@ import dayjs from 'dayjs';
     chromeSessionStorage.set({ curCacheData: [] });
     console.log('准备监听', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
     window.addEventListener('ajaxHook_to_content', async (event: any) => {
-      const { type, message } = event.detail;
+      const { type, message } = event.detail || {};
 
       if (type === 'cache_hit') {
         hitCount++;

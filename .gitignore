@@ -28,3 +28,7 @@ lerna-debug.log*
 
 # 本地环境文件
 *.local
+
+request-master-dev
+request-master-prod
+*.zip

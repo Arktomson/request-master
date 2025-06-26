@@ -3,6 +3,7 @@ import { pluginVue } from '@rsbuild/plugin-vue';
 import { pluginSass } from '@rsbuild/plugin-sass';
 import { resolve } from 'path';
 import ElementPlus from 'unplugin-element-plus/rspack';
+import MonacoWebpackPlugin from 'monaco-editor-webpack-plugin';
 
 export default (defineConfig(({ env, envMode, command }) => {
   const isDev = env === 'development';
@@ -60,7 +61,7 @@ export default (defineConfig(({ env, envMode, command }) => {
       sourceMap: isDev,
       // 根据环境设置输出目录
       distPath: {
-        root: isProd ? 'dist-prod' : 'dist',
+        root: isProd ? 'request-master-prod' : 'request-master-dev',
       },
       // 清理输出目录
       cleanDistPath: true,
@@ -118,7 +119,11 @@ export default (defineConfig(({ env, envMode, command }) => {
           }),
           ElementPlus({
             include: [/\.vue$/, /\.vue\?vue/, /\.md$/, /\.vue\.[tj]sx?\?vue/],
-          })
+          }),
+          new MonacoWebpackPlugin({
+            // 可选：只打包需要的语言和功能，减小体积
+            languages: ['json'],
+          }),
         );
         config.stats = {
           preset: 'normal', // 基础信息
@@ -127,14 +132,9 @@ export default (defineConfig(({ env, envMode, command }) => {
           modules: false, // 不列模块
           entrypoints: true, // 显示每个入口包含哪些文件
           performance: true, // 报告超过 performance.hints 阈值的文件
-          assetFilter: (assetName) => !assetName.endsWith('.map'), // 可选：别把 .map 也打印
         };
         // 确保 content scripts 等特殊入口点能正确输出文件名
         config.output.filename = '[name].js';
-        config.module.rules.push({
-          test: /\.worker\.js$/,
-          type: 'asset/resource',
-        });
         return config;
       },
     },

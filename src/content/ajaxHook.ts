@@ -11,20 +11,23 @@ import dayjs from 'dayjs';
 
 console.log('进入ajaxHook', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
 
-function checkStatus(
-  request: AjaxHookRequest,
-  respone: AjaxHookResponse
-): {
-  status: ProcessStatus;
-  cacheKey: string;
-} {
-  let status = ProcessStatus.CACHE;
-  const isError = serverTempErrorCodes.includes(respone.status);
-  const cacheKey = generateCacheKey(
-    normalizeUrl(respone.finalUrl),
+function getCacheKey(request: AjaxHookRequest) {
+  const url = request.url?.startsWith('http') ? request.url : window.location.origin + request.url;
+  return generateCacheKey(
+    normalizeUrl(url),
     request.data,
     request.method
   );
+}
+function checkStatus(
+  request: AjaxHookRequest,
+  respone: AjaxHookResponse,
+  cacheKey: string
+): {
+  status: ProcessStatus;
+} {
+  let status = ProcessStatus.CACHE;
+  const isError = serverTempErrorCodes.includes(respone.status);
   const isHasCacheData = cacheManager.has(cacheKey);
   if (isError && !isHasCacheData) {
     status = ProcessStatus.ERROR_NO_CACHE;
@@ -34,8 +37,7 @@ function checkStatus(
     status = ProcessStatus.CACHE;
   }
   return {
-    status,
-    cacheKey,
+    status
   };
 }
 function filterSituation(resp) {
@@ -60,20 +62,12 @@ function filterSituation(resp) {
 
 function beginHook() {
   let mockList = [];
-  let mockMap = new Map();
   let mockEnabled = true;
   let monitorEnabled = true;
   let disasterRecoveryProcessing = false;
   let urlMatch = false;
 
-  const buildMockMap = (list: any[]) => {
-    mockMap.clear();
-    list.forEach((item: any) => {
-      if (item && item.cacheKey) {
-        mockMap.set(item.cacheKey, item);
-      }
-    });
-  };
+
 
   console.log('启动ajaxHook', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
   console.log('monitorEnabled', monitorEnabled);
@@ -92,7 +86,6 @@ function beginHook() {
     mockEnabled = mockEnabledInit;
     urlMatch = urlMatchInit;
     
-    buildMockMap(mockList);
   }
   console.log(
     monitorEnabled,
@@ -108,6 +101,14 @@ function beginHook() {
         request,
         dayjs().format('YYYY-MM-DD HH:mm:ss.SSS')
       );
+      const cacheKey = getCacheKey(request);
+      if(mockEnabled){
+        const mock = mockList.find((item: any) => item.cacheKey === cacheKey);
+        if (mock) {
+          request.data = mock.params;
+          request.headers = mock.headers;
+        }
+      }
       request.response = (resp: AjaxHookResponse) => {
         console.log('resp', resp);
         if (!filterSituation(resp)) {
@@ -117,13 +118,13 @@ function beginHook() {
           request,
           resp as AjaxHookResponse,
           (json: Record<string, any>) => {
-            const { status, cacheKey } = checkStatus(request, resp);
+            const { status } = checkStatus(request, resp, cacheKey);
             if (monitorEnabled) {
               let isMock = false;
               let mockData = json;
               if (mockEnabled) {
                 // 🚀 性能优化：使用Map查找，时间复杂度从O(n)降到O(1)
-                const mock = mockMap.get(cacheKey);
+                const mock = mockList.find((item: any) => item.cacheKey === cacheKey);
                 if (mock) {
                   json = mock.response;
                   mockData = mock.response;
@@ -141,7 +142,7 @@ function beginHook() {
                   params: request.data,
                   response: mockData,
                   cacheKey: cacheKey,
-                  headers: resp.responseHeaders,
+                  headers: request.headers,
                   time: new Date().getTime(),
                   isMock,
                 },
@@ -196,8 +197,6 @@ function beginHook() {
       const { detail: { type, action, message } = {} } = event || {};
       if (type === 'mockList_change') {
         mockList = message;
-        // 🚀 性能优化：同时更新mockMap索引，保持高效查找
-        buildMockMap(mockList);
       } else if (type === 'mockEnabled_change') {
         mockEnabled = message;
         console.log('mockEnabled_change ajaxHook', message);

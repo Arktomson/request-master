@@ -8,10 +8,11 @@
     <div class="panel-controls">
       <el-checkbox v-model="showQueryPanel" label="显示Query参数" />
       <el-checkbox v-model="showHeaderPanel" label="显示Headers" />
+      <el-checkbox v-model="showBodyPanel" label="显示Body参数" />
     </div>
 
     <!-- Query参数面板 -->
-    <div v-show="showQueryPanel && hasContent" class="info-panel">
+    <div v-show="showQueryPanel && queryContent" class="info-panel">
       <div class="panel-header">
         <el-icon>
           <List />
@@ -21,33 +22,39 @@
           <el-button size="small" @click="handleCopyQuery">复制</el-button>
         </div>
       </div>
-      <div class="panel-content">
-        <div class="editor-container">
-          <div ref="queryEditorRef" class="mini-editor" :style="{ height: queryEditorHeight + 'px' }" />
-        </div>
-      </div>
+      <div ref="queryEditorRef" class="monaco-editor" />
     </div>
 
     <!-- Headers面板 -->
-    <div v-show="showHeaderPanel && hasContent" class="info-panel">
+    <div v-show="showHeaderPanel && headerContent" class="info-panel">
       <div class="panel-header">
         <el-icon>
           <Document />
         </el-icon>
-        <span>响应Headers</span>
+        <span>请求Headers</span>
         <div class="panel-actions">
           <el-button size="small" @click="handleCopyHeaders">复制</el-button>
         </div>
       </div>
-      <div class="panel-content">
-        <div class="editor-container">
-          <div ref="headersEditorRef" class="mini-editor" :style="{ height: headersEditorHeight + 'px' }" />
+      <div ref="headersEditorRef" class="monaco-editor" />
+    </div>
+
+    <!-- Body参数面板 -->
+    <div v-show="showBodyPanel && bodyContent" class="info-panel">
+      <div class="panel-header">
+        <el-icon>
+          <Document />
+        </el-icon>
+        <span>请求体 (Body)</span>
+        <div class="panel-actions">
+          <el-button size="small" @click="handleCopyBody">复制</el-button>
         </div>
       </div>
+      <div ref="bodyEditorRef" class="monaco-editor" />
     </div>
 
     <!-- 响应体内容 -->
-    <div class="json-content">
+    <div class="resp-content">
       <div class="response-header">
         <el-icon>
           <DocumentCopy />
@@ -64,12 +71,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { ElMessage, ElButton, ElCheckbox, ElIcon } from 'element-plus';
 import { List, Document, DocumentCopy } from '@element-plus/icons-vue';
-import { messageToContent } from '@/utils';
+import { chromeLocalStorage, messageToContent } from '@/utils';
 import * as monaco from 'monaco-editor';
-import '@/utils/monacoWorker';
+import { debounce } from 'lodash-es';
 
 // 定义属性
 const props = defineProps<{
@@ -77,23 +84,14 @@ const props = defineProps<{
   type: 'request' | 'mock' | null;  // 数据类型
 }>();
 
-// 定义事件
-const emit = defineEmits<{
-  (e: 'save-response', value: string): void;
-  (e: 'save-query', value: string): void;
-  (e: 'save-headers', value: string): void;
-}>();
-
 // 状态
-const jsonContent = ref('');
-const jsonViewerAreaRef = ref<HTMLElement | null>(null);
 const showQueryPanel = ref(true);
 const showHeaderPanel = ref(true);
+const showBodyPanel = ref(true);
 
-// 计算属性
-const hasContent = computed(() => {
-  return props.data !== null && props.type !== null;
-});
+// 面板区域ref
+const jsonViewerAreaRef = ref<HTMLElement | null>(null);
+
 
 const isMockSelected = computed(() => {
   return props.type === 'mock';
@@ -122,39 +120,25 @@ const responseContent = computed(() => {
 
 // 获取query参数内容（转换为对象格式）
 const queryContent = computed(() => {
-  const data = props.data;
-  if (!data) return '{}';
+  const d = props.data;
+  if (!d?.query) return '';
 
-  // 优先使用query字段（已被urlApart处理过）
-  if (data.query) {
-    // 如果是URL search格式，转换为对象
-    if (data.query.startsWith('?')) {
-      const searchParams = new URLSearchParams(data.query);
-      const obj: Record<string, string> = {};
-      searchParams.forEach((value, key) => {
-        obj[key] = value;
-      });
-      return JSON.stringify(obj, null, 2);
-    }
-    return data.query;
+  const q = d.query;
+  // ?a=1&b=2 形式
+  if (q.startsWith('?')) {
+    console.log('queryContent', q)
+    const searchParams = new URLSearchParams(q);
+    const obj: Record<string, string> = {};
+    searchParams.forEach((value, key) => (obj[key] = value));
+    return JSON.stringify(obj, null, 2);
   }
-
-  // 兼容旧的params字段
-  if (data.params) {
-    try {
-      return typeof data.params === 'string' ? data.params : JSON.stringify(data.params, null, 2);
-    } catch (e) {
-      return String(data.params);
-    }
-  }
-
-  return '{}';
+  return ''
 });
 
 // 获取headers内容（确保为JSON格式）
 const headerContent = computed(() => {
   const data = props.data;
-  if (!data || !data.headers) return '{}';
+  if (!data || !data.headers) return '';
 
   try {
     return typeof data.headers === 'string' ? data.headers : JSON.stringify(data.headers, null, 2);
@@ -163,87 +147,79 @@ const headerContent = computed(() => {
   }
 });
 
-// 计算编辑器高度
-const getEditorHeight = (content: string) => {
-  const lines = content.split('\n').length;
-  const minHeight = 60; // 最小高度
-  const maxHeight = 150; // 最大高度
-  const lineHeight = 18; // 每行高度
-  const calculatedHeight = Math.min(Math.max(lines * lineHeight + 20, minHeight), maxHeight);
-  return calculatedHeight;
-};
+// 获取body参数内容（确保为JSON格式）
+const bodyContent = computed(() => {
+  const d = props.data;
+  if (!d || !d.params) return '';
+  try {
+    if (typeof d.params === 'string') {
+      try {
+        return JSON.stringify(JSON.parse(d.params), null, 2);
+      } catch (_) {
+        return d.params;
+      }
+    }
+    return JSON.stringify(d.params, null, 2);
+  } catch (_) {
+    return String(d.params);
+  }
+});
 
-const queryEditorHeight = computed(() => getEditorHeight(queryContent.value));
-const headersEditorHeight = computed(() => getEditorHeight(headerContent.value));
 
 // =============== Monaco Editor ===============
 const editorRef = ref<HTMLElement | null>(null);
 const queryEditorRef = ref<HTMLElement | null>(null);
 const headersEditorRef = ref<HTMLElement | null>(null);
+const bodyEditorRef = ref<HTMLElement | null>(null);
+
 let editor: monaco.editor.IStandaloneCodeEditor | null = null;
 let queryEditor: monaco.editor.IStandaloneCodeEditor | null = null;
 let headersEditor: monaco.editor.IStandaloneCodeEditor | null = null;
+let bodyEditor: monaco.editor.IStandaloneCodeEditor | null = null;
 
-const setEditorContent = (val: string) => {
-  if (editor) {
-    const model = editor.getModel();
-    if (model && model.getValue() !== val) {
-      model.setValue(val);
-    }
-  }
-};
 
-const updateEditorOptions = () => {
-  if (!editor) return;
-  editor.updateOptions({ readOnly: isReadonly.value });
-  // 语言固定 json
-  monaco.editor.setModelLanguage(editor.getModel()!, 'json');
-  // 内容
-  setEditorContent(jsonContent.value || '');
-};
 
 // 创建编辑器的函数
 const createEditors = async () => {
-
   // 创建主编辑器（响应体）
-  if (editorRef.value && !editor) {
+  if (!editor) {
     editor = monaco.editor.create(editorRef.value as HTMLElement, {
-      value: jsonContent.value || '',
+      value: responseContent.value || '',
       language: 'json',
       theme: "vs",
       readOnly: isReadonly.value,
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
       automaticLayout: true,
-    });
 
-    // 监听内容变化，实时更新
-    editor.onDidChangeModelContent(() => {
-      console.log('change', isReadonly.value)
+    });
+    // 监听内容变化，使用节流函数减少高频触发
+    const handleRespChange = debounce(() => {
       if (!isReadonly.value) {
         const newValue = editor!.getValue();
-        jsonContent.value = newValue;
-        
-        // 如果是mock类型，自动保存
-        if (props.type === 'mock') {
-          try {
-            JSON.parse(newValue);
-            emit('save-response', newValue);
-          } catch (error) {
-            // JSON格式错误时不保存
-          }
+        try {
+          const parseContent = JSON.parse(newValue);
+          emit('save-response', parseContent);
+        } catch (error) {
         }
       }
+    }, 1000); // 1500ms 防抖间隔，可根据需要调整
+
+    // 仅在用户实际修改（非 setValue 触发的 isFlush 事件）时才调用
+    editor.onDidChangeModelContent((e) => {
+      if (e.isFlush) return; // 忽略初始化/编程式更新
+      handleRespChange();
     });
   }
 
-  // 创建Query编辑器
-  if (queryEditorRef.value && !queryEditor && showQueryPanel.value && hasContent.value) {
-    // 设置初始高度
-    queryEditorRef.value.style.height = queryEditorHeight.value + 'px';
 
-    queryEditor = monaco.editor.create(queryEditorRef.value, {
-      value: queryContent.value || '{}',
+
+  // 创建Query编辑器
+  if (!queryEditor && showQueryPanel.value && queryContent.value) {
+    console.log('queryContent', queryContent.value)
+
+    queryEditor = monaco.editor.create(queryEditorRef.value as HTMLElement, {
+      value: queryContent.value,
       language: 'json',
       theme: 'vs',
       readOnly: props.type !== 'mock', // 根据类型设置只读状态
@@ -253,8 +229,9 @@ const createEditors = async () => {
     });
 
     // 监听内容变化，自动保存（仅mock类型）
-    queryEditor.onDidChangeModelContent(() => {
-      if (props.type === 'mock') {
+    queryEditor.onDidChangeModelContent((e) => {
+      if (e.isFlush) return;
+      if (isReadonly.value) {
         const newValue = queryEditor!.getValue();
         try {
           JSON.parse(newValue);
@@ -267,12 +244,10 @@ const createEditors = async () => {
   }
 
   // 创建Headers编辑器
-  if (headersEditorRef.value && !headersEditor && showHeaderPanel.value && hasContent.value) {
-    // 设置初始高度
-    headersEditorRef.value.style.height = headersEditorHeight.value + 'px';
+  if (!headersEditor && showHeaderPanel.value && headerContent.value) {
 
-    headersEditor = monaco.editor.create(headersEditorRef.value, {
-      value: headerContent.value || '{}',
+    headersEditor = monaco.editor.create(headersEditorRef.value as HTMLElement, {
+      value: headerContent.value,
       language: 'json',
       theme: 'vs',
       readOnly: props.type !== 'mock', // 根据类型设置只读状态
@@ -282,8 +257,9 @@ const createEditors = async () => {
     });
 
     // 监听内容变化，自动保存（仅mock类型）
-    headersEditor.onDidChangeModelContent(() => {
-      if (props.type === 'mock') {
+    headersEditor.onDidChangeModelContent((e) => {
+      if (e.isFlush) return;
+      if (isReadonly.value) {
         const newValue = headersEditor!.getValue();
         try {
           JSON.parse(newValue);
@@ -294,24 +270,66 @@ const createEditors = async () => {
       }
     });
   }
+
+  // 创建Body编辑器
+  if (!bodyEditor && showBodyPanel.value && bodyContent.value) {
+
+    bodyEditor = monaco.editor.create(bodyEditorRef.value as HTMLElement, {
+      value: bodyContent.value,
+      language: 'json',
+      theme: 'vs',
+      readOnly: props.type !== 'mock', // 根据类型设置只读状态
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+    });
+
+    // 监听内容变化，自动保存（仅mock类型）
+    bodyEditor.onDidChangeModelContent((e) => {
+      if (e.isFlush) return;
+      if (isReadonly.value) {
+        const newValue = bodyEditor!.getValue();
+        try {
+          JSON.parse(newValue);
+          emit('save-body', newValue);
+        } catch (error) {
+          // JSON格式错误时不保存
+        }
+      }
+    });
+  }
 };
 
-onMounted(() => {
-  createEditors();
-  window.addEventListener('pagehide', () => {
-    editor?.dispose();
-    queryEditor?.dispose();
-    headersEditor?.dispose();
+const onPageHide = () => {
+  editor?.dispose();
+  queryEditor?.dispose();
+  headersEditor?.dispose();
+  bodyEditor?.dispose();
+
+  chromeLocalStorage.set({
+    queryPanelVisible: showQueryPanel.value,
+    headersPanelVisible: showHeaderPanel.value,
+    bodyPanelVisible: showBodyPanel.value,
   });
+};
+onMounted(async () => {
+  const { queryPanelVisible, headersPanelVisible, bodyPanelVisible } = await chromeLocalStorage.get(['queryPanelVisible', 'headersPanelVisible', 'bodyPanelVisible']);
+  showQueryPanel.value = queryPanelVisible ?? false;
+  showHeaderPanel.value = headersPanelVisible ?? false;
+  showBodyPanel.value = bodyPanelVisible ?? false;
+  createEditors();
+  window.addEventListener('pagehide', onPageHide);
 });
 /* ---------- watch 更新 ---------- */
-watch([jsonContent, isReadonly], () => {
-  updateEditorOptions();
+watch(isReadonly, (newVal) => {
+  editor?.updateOptions({ readOnly: newVal });
+  queryEditor?.updateOptions({ readOnly: newVal });
+  headersEditor?.updateOptions({ readOnly: newVal });
+  bodyEditor?.updateOptions({ readOnly: newVal });
 });
 
 // 监听响应内容变化
 watch(responseContent, (newValue) => {
-  jsonContent.value = newValue;
   if (editor && editor.getValue() !== newValue) {
     editor.setValue(newValue);
   }
@@ -331,32 +349,21 @@ watch(headerContent, (newValue) => {
   }
 });
 
-// 监听编辑器高度变化，触发布局更新
-watch([queryEditorHeight, headersEditorHeight], () => {
-  nextTick(() => {
-    queryEditor?.layout();
-    headersEditor?.layout();
-  });
-});
-
-// 监听选择状态变化，更新编辑器只读状态
-watch(() => props.type, (newType) => {
-  // 更新编辑器只读状态
-  if (queryEditor) {
-    queryEditor.updateOptions({ readOnly: props.type !== 'mock' });
-  }
-  if (headersEditor) {
-    headersEditor.updateOptions({ readOnly: props.type !== 'mock' });
+// 监听bodyContent变化，同步到编辑器
+watch(bodyContent, (newValue) => {
+  if (bodyEditor && bodyEditor.getValue() !== newValue) {
+    bodyEditor.setValue(newValue);
   }
 });
 
-watch([hasContent, showQueryPanel, showHeaderPanel], () => {
+
+watch([showQueryPanel, showHeaderPanel, showBodyPanel, queryContent, headerContent, bodyContent], () => {
   createEditors();
 });
 
 // 方法
 const handleCopyJson = async () => {
-  const contentToCopy = jsonContent.value;
+  const contentToCopy = responseContent.value;
   if (!contentToCopy) {
     ElMessage.warning('没有内容可复制');
     return;
@@ -409,8 +416,26 @@ const handleCopyHeaders = async () => {
   });
 };
 
+const handleCopyBody = async () => {
+  const contentToCopy = bodyContent.value;
+  if (!contentToCopy) {
+    ElMessage.warning('没有Body参数可复制');
+    return;
+  }
+  messageToContent({
+    type: 'copy_json',
+    data: contentToCopy
+  }, (response) => {
+    if (response.success) {
+      ElMessage.success('Body参数已复制到剪贴板');
+    } else {
+      ElMessage.error('复制失败，请手动复制');
+    }
+  });
+};
+
 const handleFormatJson = () => {
-  const text = jsonContent.value;
+  const text = responseContent.value;
   if (!text) {
     ElMessage.warning('没有内容可格式化');
     return;
@@ -419,7 +444,6 @@ const handleFormatJson = () => {
   try {
     const parsed = JSON.parse(text);
     const formatted = JSON.stringify(parsed, null, 2);
-    jsonContent.value = formatted;
     if (editor) {
       editor.setValue(formatted);
     }
@@ -433,11 +457,17 @@ const handleFormatJson = () => {
 defineExpose({
   jsonViewerAreaRef
 });
+
+const emit = defineEmits<{
+  (e: 'save-response', value: string): void;
+  (e: 'save-query', value: string): void;
+  (e: 'save-headers', value: string): void;
+  (e: 'save-body', value: string): void;
+}>();
 </script>
 
 <style scoped lang="scss">
 .json-viewer-area {
-  flex: 1;
   min-width: 250px;
   display: flex;
   flex-direction: column;
@@ -465,6 +495,9 @@ defineExpose({
 
   .info-panel {
     border-bottom: 1px solid #ebeef5;
+    flex: 0.4;
+    display: flex;
+    flex-direction: column;
 
     .panel-header {
       display: flex;
@@ -491,19 +524,12 @@ defineExpose({
       }
     }
 
-    .panel-content {
-      .editor-container {
-        padding: 0;
-
-        .mini-editor {
-          border: 1px solid #e4e7ed;
-          transition: height 0.2s ease;
-        }
-      }
+    .monaco-editor {
+      flex: 1;
     }
   }
 
-  .json-content {
+  .resp-content {
     flex: 1;
     display: flex;
     flex-direction: column;

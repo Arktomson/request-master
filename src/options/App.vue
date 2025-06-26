@@ -101,15 +101,15 @@ interface DomainRule {
 }
 
 // 防抖函数
-function debounce(fn: Function, delay: number) {
+function debounce<T extends (...args: any[]) => any>(fn: T, delay: number) {
   let timer: number | null = null;
-  return function (...args: any[]) {
+  return function (this: ThisParameterType<T>, ...args: Parameters<T>) {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       fn.apply(this, args);
       timer = null;
     }, delay) as unknown as number;
-  };
+  } as T;
 }
 
 // 默认设置
@@ -207,7 +207,7 @@ const loadCacheConfig = async () => {
     } else {
       // 确保每个规则都有正确的属性
       loadedCacheConfig.domainRules.rules =
-        loadedCacheConfig.domainRules.rules.map((rule) => {
+        loadedCacheConfig.domainRules.rules.map((rule: any) => {
           // 确保rule是对象
           if (!rule || typeof rule !== "object") {
             return {
@@ -348,6 +348,8 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+@use "sass:color";
+
 // 定义变量
 $primary-color: #409eff;
 $secondary-color: #909399;
@@ -472,7 +474,7 @@ textarea {
     color: white;
 
     &:hover {
-      background-color: lighten($primary-color, 10%);
+      background-color: color.adjust($primary-color, $lightness: 10%);
     }
   }
 
@@ -481,7 +483,7 @@ textarea {
     color: white;
 
     &:hover {
-      background-color: lighten($secondary-color, 10%);
+      background-color: color.adjust($secondary-color, $lightness: 10%);
     }
   }
 
@@ -490,7 +492,7 @@ textarea {
     color: white;
 
     &:hover {
-      background-color: lighten($danger-color, 10%);
+      background-color: color.adjust($danger-color, $lightness: 10%);
     }
   }
 }

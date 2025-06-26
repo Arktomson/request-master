@@ -47,6 +47,7 @@
         @save-response="handleSaveResponse"
         @save-query="handleSaveQuery"
         @save-headers="handleSaveHeaders"
+        @save-body="handleSaveBody"
       />
     </div>
 
@@ -266,86 +267,67 @@ const deleteRequest = (index: number) => {
 };
 
 // 处理响应体保存
-const handleSaveResponse = async (content: string) => {
+const handleSaveResponse = async (parseContent: any) => {
   // 只处理Mock的响应保存
-  if (currentSelectedType.value === 'mock' && selectedMock.value) {
-    const parseContent = JSON.parse(content);
-    const { cacheKey } = selectedMock.value;
-    const curMockList = (await chromeLocalStorage.get('mockList')) || [];
-
-    curMockList.forEach((item: any) => {
-      if (item.cacheKey === cacheKey) {
-        item.response = parseContent;
-      }
-    });
-
-    mockList.value[selectedMockIndex.value].response = parseContent;
-    chromeLocalStorage.set({ mockList: curMockList });
-  }
+  selectedMock.value.response = parseContent;
+  chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
+  ElMessage.success('修改已保存!');
 };
 
 // 处理Query参数保存
 const handleSaveQuery = async (content: string) => {
   // 只处理Mock的Query保存
-  if (currentSelectedType.value === 'mock' && selectedMock.value) {
-    const { cacheKey } = selectedMock.value;
-    const curMockList = (await chromeLocalStorage.get('mockList')) || [];
+  // if (currentSelectedType.value === 'mock' && selectedMock.value) {
+  //   const { cacheKey } = selectedMock.value;
+  //   const curMockList = (await chromeLocalStorage.get('mockList')) || [];
 
-    curMockList.forEach((item: any) => {
-      if (item.cacheKey === cacheKey) {
-        // 如果是URL search格式，直接保存
-        if (content.startsWith('?')) {
-          item.query = content;
-        } else {
-          // 如果是其他格式，尝试解析后保存
-          try {
-            const parsed = JSON.parse(content);
-            item.params = parsed;
-            // 同时更新query字段为URL search格式
-            const searchParams = new URLSearchParams();
-            Object.entries(parsed).forEach(([key, value]) => {
-              searchParams.append(key, String(value));
-            });
-            item.query = '?' + searchParams.toString();
-          } catch (e) {
-            // 解析失败时保存原始内容到params
-            item.params = content;
-          }
-        }
-      }
-    });
+  //   curMockList.forEach((item: any) => {
+  //     if (item.cacheKey === cacheKey) {
+  //       // 如果是URL search格式，直接保存
+  //       if (content.startsWith('?')) {
+  //         item.query = content;
+  //       } 
+  //     }
+  //   });
 
-    mockList.value[selectedMockIndex.value] = {
-      ...curMockList.find((item: any) => item.cacheKey === cacheKey),
-    };
-    chromeLocalStorage.set({ mockList: curMockList });
-  }
+  //   mockList.value[selectedMockIndex.value] = {
+  //     ...curMockList.find((item: any) => item.cacheKey === cacheKey),
+  //   };
+  //   chromeLocalStorage.set({ mockList: curMockList });
+  // }
 };
 
 // 处理Headers保存
 const handleSaveHeaders = async (content: string) => {
   // 只处理Mock的Headers保存
-  if (currentSelectedType.value === 'mock' && selectedMock.value) {
-    const { cacheKey } = selectedMock.value;
-    const curMockList = (await chromeLocalStorage.get('mockList')) || [];
+  // if (currentSelectedType.value === 'mock' && selectedMock.value) {
+  //   const { cacheKey } = selectedMock.value;
+  //   const curMockList = (await chromeLocalStorage.get('mockList')) || [];
 
-    curMockList.forEach((item: any) => {
-      if (item.cacheKey === cacheKey) {
-        try {
-          const parseContent = JSON.parse(content);
-          item.headers = parseContent;
-        } catch (e) {
-          // 解析失败时保存原始内容
-          item.headers = content;
-        }
-      }
-    });
+  //   curMockList.forEach((item: any) => {
+  //     if (item.cacheKey === cacheKey) {
+  //       try {
+  //         const parseContent = JSON.parse(content);
+  //         item.headers = parseContent;
+  //       } catch (e) {
+  //         // 解析失败时保存原始内容
+  //         item.headers = content;
+  //       }
+  //     }
+  //   });
 
-    mockList.value[selectedMockIndex.value] = {
-      ...curMockList.find((item: any) => item.cacheKey === cacheKey),
-    };
-    chromeLocalStorage.set({ mockList: curMockList });
-  }
+  //   mockList.value[selectedMockIndex.value] = {
+  //     ...curMockList.find((item: any) => item.cacheKey === cacheKey),
+  //   };
+  //   chromeLocalStorage.set({ mockList: curMockList });
+  // }
+};
+
+const handleSaveBody = async (content: string) => {
+  // 只处理Mock的Body保存
+  // selectedMock.value.params = content;
+  // chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
+  // ElMessage.success('修改已保存!');
 };
 
 // 拖拽调整大小处理
@@ -431,7 +413,7 @@ const onPageHide = () => {
 
 // 设置消息监听
 const setupMessageListener = () => {
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
       if (message.type === 'new_request_data') {
         requestList.value.push(preProcessRequestData(message.data));
       } else if (message.type === 'batch_request_data') {

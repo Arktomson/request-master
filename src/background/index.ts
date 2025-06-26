@@ -58,6 +58,9 @@ async function initConfig() {
     mockEnabled: false,
     monitorEnabled: false,
     sidebarWidth: 900,
+    queryPanelVisible: true,
+    headersPanelVisible: true,
+    bodyPanelVisible: true,
   };
   for (const [key, val] of Object.entries(defaultSettings)) {
     if (isNil(stored[key])) {
