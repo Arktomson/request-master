@@ -27,7 +27,7 @@ class IframeSidebar {
 
   private async createSidebar() {
     // 检查是否已经初始化过
-    if (document.getElementById('request-cache-sidebar-container')) {
+    if (document.getElementById('request-master-sidebar-container')) {
       return;
     }
 
@@ -54,7 +54,7 @@ class IframeSidebar {
 
     // 创建iframe容器
     const container = document.createElement('div');
-    container.id = 'request-cache-sidebar-container';
+    container.id = 'request-master-sidebar-container';
     Object.assign(container.style, {
       position: 'fixed',
       top: '0',
@@ -69,7 +69,7 @@ class IframeSidebar {
 
     // 创建调整宽度的拖动条
     const resizeHandle = document.createElement('div');
-    resizeHandle.id = 'request-cache-sidebar-resize';
+    resizeHandle.id = 'request-master-sidebar-resize';
     Object.assign(resizeHandle.style, {
       position: 'absolute',
       top: '0',
@@ -86,7 +86,7 @@ class IframeSidebar {
 
     // 创建iframe
     this.iframe = document.createElement('iframe');
-    this.iframe.id = 'request-cache-sidebar-iframe';
+    this.iframe.id = 'request-master-sidebar-iframe';
     Object.assign(this.iframe.style, {
       width: '100%',
       height: '100%',
@@ -100,7 +100,7 @@ class IframeSidebar {
 
     // 添加一个关闭按钮
     const closeBtn = document.createElement('div');
-    closeBtn.id = 'request-cache-sidebar-close';
+    closeBtn.id = 'request-master-sidebar-close';
     Object.assign(closeBtn.style, {
       position: 'absolute',
       top: '0px',
@@ -137,7 +137,7 @@ class IframeSidebar {
     this.initialX = e.clientX;
 
     const container = document.getElementById(
-      'request-cache-sidebar-container'
+      'request-master-sidebar-container'
     );
     if (container) {
       this.initialWidth = container.offsetWidth;
@@ -149,7 +149,7 @@ class IframeSidebar {
 
     // 添加覆盖层防止iframe捕获鼠标事件
     const overlay = document.createElement('div');
-    overlay.id = 'request-cache-sidebar-overlay';
+    overlay.id = 'request-master-sidebar-overlay';
     Object.assign(overlay.style, {
       position: 'fixed',
       top: '0',
@@ -167,7 +167,7 @@ class IframeSidebar {
     if (!this.isDragging) return;
 
     const container = document.getElementById(
-      'request-cache-sidebar-container'
+      'request-master-sidebar-container'
     );
     if (!container) return;
 
@@ -198,7 +198,7 @@ class IframeSidebar {
     document.removeEventListener('mouseup', this.handleResizeEnd);
 
     // 移除覆盖层
-    const overlay = document.getElementById('request-cache-sidebar-overlay');
+    const overlay = document.getElementById('request-master-sidebar-overlay');
     if (overlay) {
       overlay.remove();
     }
@@ -210,7 +210,7 @@ class IframeSidebar {
   private hideSidebar() {
     
     const container = document.getElementById(
-      'request-cache-sidebar-container'
+      'request-master-sidebar-container'
     );
     if (container) {
       container.style.right = `-${this.sidebarWidth}px`;
@@ -221,7 +221,7 @@ class IframeSidebar {
     
     console.log('销毁侧边栏')
     const container = document.getElementById(
-      'request-cache-sidebar-container'
+      'request-master-sidebar-container'
     );
     if (container) {
       // 先添加过渡动画
@@ -240,7 +240,7 @@ class IframeSidebar {
 
   private showSidebar() {
     const container = document.getElementById(
-      'request-cache-sidebar-container'
+      'request-master-sidebar-container'
     );
     if (container) {
       container.style.right = '0';
@@ -278,7 +278,7 @@ class IframeSidebar {
     if (!this.isVisible) return;
 
     const container = document.getElementById(
-      'request-cache-sidebar-container'
+      'request-master-sidebar-container'
     );
     if (!container) return;
 

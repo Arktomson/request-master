@@ -47,14 +47,14 @@
             </el-tag>
           </div>
           <div class="action-column">
-            <el-button
+            <!-- <el-button
               type="primary"
               size="small"
               circle
               @click.stop="emit('edit-mock', index)"
             >
               <el-icon><Edit /></el-icon>
-            </el-button>
+            </el-button> -->
             <el-button
               type="danger"
               size="small"

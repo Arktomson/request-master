@@ -59,6 +59,14 @@
         </div>
         <div class="action-column">
           <el-button
+            type="primary"
+            size="small"
+            circle
+            @click.stop="emit('add-to-mock', item.originalIndex)"
+          >
+            <el-icon><Plus /></el-icon>
+          </el-button>
+          <el-button
             type="danger"
             size="small"
             circle
@@ -75,7 +83,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { ElButton, ElInput, ElTag, ElTooltip, ElIcon } from 'element-plus';
-import { Delete ,Search } from '@element-plus/icons-vue';
+import { Delete, Search, Plus } from '@element-plus/icons-vue';
 import { getMethodType } from '@/utils';
 
 
@@ -180,7 +188,7 @@ defineExpose({
     }
 
     .action-column {
-      width: 60px;
+      width: 100px;
       text-align: center;
     }
   }
@@ -245,11 +253,12 @@ defineExpose({
       }
 
       .action-column {
-        width: 60px;
+        width: 100px;
         text-align: center;
         display: flex;
         align-items: center;
         justify-content: center;
+        gap: 4px;
       }
     }
   }

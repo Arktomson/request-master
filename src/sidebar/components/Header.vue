@@ -1,6 +1,6 @@
 <template>
   <div class="sidebar-header">
-    <h1 class="sidebar-title">Mock工具</h1>
+    <div class="sidebar-title">Mock工具</div>
     <div class="sidebar-header-right">
       <span>是否缓存侧边栏</span>
       <el-switch v-model="sidebarIfCacheState" @change="handleSidebarIfCacheStateChange" />
@@ -31,17 +31,19 @@ onMounted(async () => {
 .sidebar-header {
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 3px 0px;
   border-bottom: 1px solid #ebeef5;
   
   .sidebar-title {
-    font-size: 18px;
-    margin: 0;
+    font-size: 16px;
     color: #303133;
+    font-weight: bold;
+    margin-left: 10px;
   }
 
   .sidebar-header-right {
     margin-left: auto;
+    margin-right: 10px;
     display: flex;
     align-items: center;
     gap: 10px;

@@ -45,7 +45,7 @@ let dbPromise: Promise<IDBPDatabase<RCDB>> | null = null
 
 function getDB () {
   if (!dbPromise) {
-    dbPromise = openDB<RCDB>('request-cache-db', 1, {
+    dbPromise = openDB<RCDB>('request-master-db', 1, {
       upgrade (db) {
         if (!db.objectStoreNames.contains('request_records')) {
           const r = db.createObjectStore('request_records', { keyPath: 'id', autoIncrement: true })
