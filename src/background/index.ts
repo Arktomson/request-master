@@ -7,20 +7,6 @@ import { Setting } from '@/types';
 import dayjs from 'dayjs';
 import { isNil } from 'lodash-es';
 
-// // 获取当前活动tab的URL
-// async function getCurrentTabUrl(): Promise<string | null> {
-//   try {
-//     const [tab] = await chrome.tabs.query({
-//       active: true,
-//       currentWindow: true,
-//     });
-//     return tab?.url || null;
-//   } catch (error) {
-//     console.error('获取当前tab URL失败:', error);
-//     return null;
-//   }
-// }
-
 // 检查URL是否符合注入条件
 function shouldInjectForUrl(url: string, allowedOrigins: any[]): boolean {
   const formatUrl = new URL(url);
@@ -77,7 +63,6 @@ async function isRegistered() {
 }
 async function injectCfgToPage({
   tabId,
-  frameId,
   url,
 }: {
   tabId: number;
@@ -91,18 +76,22 @@ async function injectCfgToPage({
     url,
     config.allowToInjectOrigin || []
   );
-  console.log(shouldInjectForThisUrl, 'shouldInjectForThisUrl');
   config.urlMatch = shouldInjectForThisUrl;
   console.log(config, 'config');
   chrome.scripting.executeScript({
-    target: { tabId, frameIds: [frameId] },
+    target: { tabId, allFrames: false },
     world: 'MAIN',
     func: (c) => {
-      console.log('执行配置', new Date().toISOString());
+      console.log('正在执行配置注入脚本', new Date().toISOString());
       (window as any).__HOOK_CFG = c;
     },
     args: [config],
     injectImmediately: true,
+  }).then((res) => {
+    console.log(res, 'res');
+    console.log('执行配置成功', new Date().toISOString());
+  }).catch((e) => {
+    console.error('执行配置失败', e);
   });
 }
 
@@ -172,11 +161,13 @@ function wireStorageWatcher() {
 function wireNavigationInjection() {
   chrome.webNavigation.onCommitted.addListener(
     ({ tabId, frameId, url }) => {
-      console.log('有页面加载', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'), url);
+      console.log(tabId, frameId, url, 'tabId, frameId, url');
+      console.log('有页面加载 onCommitted', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'), url);
       try {
         injectCfgToPage({ tabId, frameId, url });
       } catch (_) {
         console.error('注入配置失败:', _);
+        console.log(tabId, frameId, url, 'tabId, frameId, url');
       }
     },
     {

@@ -1,4 +1,5 @@
 import { chromeLocalStorage } from '@/utils';
+import dayjs from 'dayjs';
 
 class IframeSidebar {
   private iframe: HTMLIFrameElement | null = null;
@@ -326,6 +327,7 @@ class IframeSidebar {
     });
   }
 }
+console.log('iframeSidebar执行', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
 
 // 实例化侧边栏管理器
 export const iframeSidebar = new IframeSidebar();

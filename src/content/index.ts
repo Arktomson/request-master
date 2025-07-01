@@ -2,6 +2,7 @@ import { chromeSessionStorage, customEventSend } from '@/utils';
 import dayjs from 'dayjs';
 
 // 立即执行函数，用于防止重复执行
+console.log('content执行', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
 (function () {
   // 优化：缓存存储数据，避免重复调用
   let pendingBatchProcessData: any = [];

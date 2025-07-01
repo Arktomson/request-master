@@ -59,7 +59,7 @@ function filterSituation(resp) {
   return true;
 }
 
-
+let alreadyConfigInit = false;
 function beginHook() {
   let mockList = [];
   let mockEnabled = true;
@@ -85,7 +85,7 @@ function beginHook() {
     mockList = mockListInit;
     mockEnabled = mockEnabledInit;
     urlMatch = urlMatchInit;
-    
+    alreadyConfigInit = true;
   }
   console.log(
     monitorEnabled,
@@ -109,8 +109,25 @@ function beginHook() {
           request.headers = mock.headers;
         }
       }
-      request.response = (resp: AjaxHookResponse) => {
-        console.log('resp', resp);
+      request.response = async (resp: AjaxHookResponse) => {
+        while(!window.__HOOK_CFG) {
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        if(!alreadyConfigInit) { 
+          const {
+            monitorEnabled: monitorEnabledInit,
+            disasterRecoveryProcessing: disasterRecoveryProcessingInit,
+            mockList: mockListInit = [],
+            mockEnabled: mockEnabledInit,
+            urlMatch: urlMatchInit,
+          } = window.__HOOK_CFG;
+          monitorEnabled = monitorEnabledInit;
+          disasterRecoveryProcessing = disasterRecoveryProcessingInit;
+          mockList = mockListInit;
+          mockEnabled = mockEnabledInit;
+          urlMatch = urlMatchInit;
+          alreadyConfigInit = true;
+        }
         if (!filterSituation(resp)) {
           return resp;
         }
@@ -209,160 +226,70 @@ function beginHook() {
     });
   }
 }
-
-function microTaskInit() {
-  function waitForConfig() {
-    return new Promise((resolve) => {
-      let retryCount = 0;
-      const maxRetries = 3;
-      const check = () => {
-        console.log('check', window.__HOOK_CFG, `重试次数: ${retryCount}`);
-        if (window.__HOOK_CFG) {
-          resolve(window.__HOOK_CFG);
-        } else if (retryCount < maxRetries) {
-          retryCount++;
-          setTimeout(check, 1); // 1ms 后重试
-        } else {
-          console.warn('配置获取失败，已达到最大重试次数');
-          resolve(null); // 重试次数用完后返回 null
-        }
-      };
-      check();
-    });
-  }
-  waitForConfig().then((cfg) => {
-    beginHook();
-  });
-}
-
-function retryInit() {
-  let retryCount = 0;
-  const maxRetries = 3;
-  const check = () => {
-    if (window.__HOOK_CFG) {
-      beginHook();
-    } else if (retryCount < maxRetries) {
-      retryCount++;
-      setTimeout(check, 0); // 1ms 后重试
-    }
-  };
-  check();
-}
-
-retryInit();
-// microTaskInit();
-
-// window.addEventListener('content_to_ajaxHook', (event) => {
-//   const { detail: { type, message } = {} } = event || {};
-
-//   if (type === 'init') {
-//     const ajaxHooker = ajaxInterface();
-
-//     const {
-//       disasterRecoveryProcessing: disasterRecoveryProcessingInit,
-//       monitorEnabled: monitorEnabledInit,
-//       mockList: mockListInit = [],
-//       mockEnabled: mockEnabledInit,
-//     } = message;
-
-//     disasterRecoveryProcessing = disasterRecoveryProcessingInit;
-//     mockEnabled = mockEnabledInit;
-//     mockList = mockListInit;
-//     monitorEnabled = monitorEnabledInit;
-
-//     ajaxHooker.hook((request: AjaxHookRequest) => {
-//       request.response = (resp: AjaxHookResponse) => {
-//         if (!filterSituation(resp)) {
-//           return resp;
+beginHook();
+// function microTaskInit() {
+//   function waitForConfig() {
+//     return new Promise((resolve) => {
+//       let retryCount = 0;
+//       const maxRetries = 3;
+//       const check = () => {
+//         console.log('check', window.__HOOK_CFG, `重试次数: ${retryCount}`);
+//         if (window.__HOOK_CFG) {
+//           resolve(window.__HOOK_CFG);
+//         } else if (retryCount < maxRetries) {
+//           retryCount++;
+//           setTimeout(check, 1); // 1ms 后重试
+//         } else {
+//           console.warn('配置获取失败，已达到最大重试次数');
+//           resolve(null); // 重试次数用完后返回 null
 //         }
-//         return ajaxHooker.modifyJsonResponse(
-//           request,
-//           resp as AjaxHookResponse,
-//           (json: Record<string, any>) => {
-//             const { status, cacheKey } = checkStatus(request, resp);
-//             if (monitorEnabled) {
-//               let isMock = false;
-//               let mockData = json;
-//               if (mockEnabled) {
-//                 if (mockList.length > 0) {
-//                   const mock = mockList.find(
-//                     (item: any) => item.cacheKey === cacheKey
-//                   );
-//                   if (mock) {
-//                     json = mock.response;
-//                     mockData = mock.response;
-//                     resp.status = 200;
-//                     resp.statusText = 'OK';
-//                     isMock = true;
-//                   }
-//                 }
-//               }
-//               customEventSend('ajaxHook_to_content', {
-//                 type: 'currentRequest',
-//                 message: {
-//                   url: resp.finalUrl,
-//                   method: request.method,
-//                   params: request.data,
-//                   response: mockData,
-//                   cacheKey: cacheKey,
-//                   headers: request.headers,
-//                   time: new Date().getTime(),
-//                   isMock,
-//                 },
-//               });
-//               if (isMock) {
-//                 return json;
-//               }
-//             }
-
-//             if (disasterRecoveryProcessing) {
-//               switch (status) {
-//                 case ProcessStatus.RECOVERY:
-//                   resp.status = 200;
-//                   resp.statusText = 'OK';
-//                   // 🔥 使用缓存管理器获取缓存数据
-//                   const cachedData = cacheManager.get(cacheKey);
-//                   json = cachedData ? cachedData.cacheResponse : json;
-
-//                   customEventSend('ajaxHook_to_content', {
-//                     type: 'cache_hit',
-//                     message: {
-//                       url: resp.finalUrl,
-//                       method: request.method,
-//                       params: request.data,
-//                       response: json,
-//                       cacheKey: cacheKey,
-//                     },
-//                   });
-//                   break;
-//                 case ProcessStatus.CACHE:
-//                   // 🔥 使用缓存管理器保存数据（防抖写入，自动LRU清理）
-//                   cacheManager.set(cacheKey, {
-//                     cacheResponse: json,
-//                     cacheReqParams: request.data,
-//                   });
-
-//                   break;
-//                 case ProcessStatus.ERROR_NO_CACHE:
-//                   break;
-//                 default:
-//                   break;
-//               }
-//             }
-
-//             return json; // 返回修改后的json
-//           }
-//         );
 //       };
+//       check();
 //     });
-//   } else if (type === 'mockList_change') {
-//     mockList = message;
-//   } else if (type === 'mockEnabled_change') {
-//     mockEnabled = message;
-//   } else if (type === 'monitorEnabled_change') {
-//     console.log('monitorEnabled_change ajaxHook', message);
-//     monitorEnabled = message;
-//   } else if (type === 'disasterRecoveryProcessing_change') {
-//     disasterRecoveryProcessing = message;
+//   }
+//   waitForConfig().then((cfg) => {
+//     beginHook();
+//   });
+// }
+
+// function retryInit() {
+//   let retryCount = 0;
+//   const maxRetries = 15;
+
+//   // 如果脚本注入时已经拿到配置，直接启动即可
+//   if (window.__HOOK_CFG) {
+//     beginHook();
+//     return;
+//   }else {
+//     console.log('首次未执行beginHook',new Date().toISOString());
+//   }
+
+//   // 使用 MessageChannel 创建高优先级的宏任务队列（相比 setTimeout 没有最小时间阈值限制）
+//   const { port1, port2 } = new MessageChannel();
+
+//   port1.onmessage = () => {
+//     console.log('收到一次message channel消息',new Date().toISOString());
+//     if (window.__HOOK_CFG) {
+//       console.log('beginHook 准备执行');
+//       beginHook();
+//     } else if (retryCount < maxRetries) {
+//       console.log('重试', retryCount, 'time', new Date().toISOString());
+//       retryCount++;
+//       port2.postMessage(null);
+//     } else {
+//       console.warn('配置获取失败，已达到最大重试次数');
+//     }
+//   };
+
+//   // 触发第一次检查
+//   port2.postMessage(null);
+// }
+// ajaxHooker.hook((request: AjaxHookRequest) => {
+//   if(isFirst) {
+//     isFirst = false;
+//     console.warn('ajaxHooker first hook', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
 //   }
 // });
+// beginHook();
+// retryInit();
+// microTaskInit();

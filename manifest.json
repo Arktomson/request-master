@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "request-cache",
+  "name": "request-master",
   "version": "0.0.1",
-  "description": "request cache",
+  "description": "request master",
   "permissions": [
     "storage",
     "tabs",
@@ -28,7 +28,7 @@
       "48": "src/assets/icon48.png",
       "128": "src/assets/icon128.png"
     },
-    "default_title": "request-cache"
+    "default_title": "request-master"
   },
   "options_page": "src/options/index.html",
   "side_panel": {
@@ -69,7 +69,8 @@
     "open_sidebar": {
       "suggested_key": {
         "default": "Ctrl+H",
-        "mac": "Ctrl+H"
+        "mac": "Ctrl+H",
+        "windows": "Ctrl+H"
       },
       "description": "打开 / 切换扩展侧栏"
     }

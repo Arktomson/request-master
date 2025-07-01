@@ -35,7 +35,9 @@ const handleSelect = (key: string) => {
 
 <style scoped lang="scss">
 .tabs-sidebar {
-  width: 84px;
+  padding: 0 6px;
+  // width: 64px;
+  // padding: 5px;
   border-right: 1px solid #ebeef5;
   flex-shrink: 0;
   
