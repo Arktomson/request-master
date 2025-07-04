@@ -110,8 +110,11 @@ function beginHook() {
         }
       }
       request.response = async (resp: AjaxHookResponse) => {
+        console.warn("已进入request.response");
+        console.warn('window.__HOOK_CFG', !!window.__HOOK_CFG);
         while(!window.__HOOK_CFG) {
           await new Promise(resolve => setTimeout(resolve, 10));
+          console.warn('等待配置中ing', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
         }
         if(!alreadyConfigInit) { 
           const {
@@ -131,7 +134,7 @@ function beginHook() {
         if (!filterSituation(resp)) {
           return resp;
         }
-        return ajaxHooker.modifyJsonResponse(
+        ajaxHooker.modifyJsonResponse(
           request,
           resp as AjaxHookResponse,
           (json: Record<string, any>) => {

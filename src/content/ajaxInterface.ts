@@ -11,10 +11,10 @@ export const ajaxInterface = function () {
   function modifyJsonResponse(req, res, modifier) {
     try {
       if (req.type === 'fetch') {
-        
-        const result = modifier(res.json);
-        res.json = result;
-        return res;
+        // 如果 json 方法不存在则直接返回
+        if (res?.json) {
+          res.json = modifier(res.json);
+        }
       } else {
         const tranferJson = res.responseText
           ? JSON.parse(res.responseText)
