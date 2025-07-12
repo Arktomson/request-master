@@ -70,7 +70,7 @@
       "suggested_key": {
         "default": "Ctrl+H",
         "mac": "Ctrl+H",
-        "windows": "Ctrl+H"
+        "windows": "Ctrl+Shift+H"
       },
       "description": "打开 / 切换扩展侧栏"
     }
