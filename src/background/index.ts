@@ -78,21 +78,24 @@ async function injectCfgToPage({
   );
   config.urlMatch = shouldInjectForThisUrl;
   console.log(config, 'config');
-  chrome.scripting.executeScript({
-    target: { tabId, allFrames: false },
-    world: 'MAIN',
-    func: (c) => {
-      console.log('正在执行配置注入脚本', new Date().toISOString());
-      (window as any).__HOOK_CFG = c;
-    },
-    args: [config],
-    injectImmediately: true,
-  }).then((res) => {
-    console.log(res, 'res');
-    console.log('执行配置成功', new Date().toISOString());
-  }).catch((e) => {
-    console.error('执行配置失败', e);
-  });
+  chrome.scripting
+    .executeScript({
+      target: { tabId, allFrames: false },
+      world: 'MAIN',
+      func: (c) => {
+        console.log('正在执行配置注入脚本', new Date().toISOString());
+        (window as any).__HOOK_CFG = c;
+      },
+      args: [config],
+      injectImmediately: true,
+    })
+    .then((res) => {
+      console.log(res, 'res');
+      console.log('执行配置成功', new Date().toISOString());
+    })
+    .catch((e) => {
+      console.error('执行配置失败', e);
+    });
 }
 
 async function ensureScripts() {
@@ -152,6 +155,15 @@ function wireRuntimeMessaging() {
       messageToContent({ type: 'toggle_sidebar' });
     }
   });
+  chrome.contextMenus.onClicked.addListener(async (info) => {
+    if (info.menuItemId === 'open_mock_panel') {
+      try {
+        messageToContent({ type: 'toggle_sidebar' });
+      } catch (error) {
+        console.error('Failed to open sidebar:', error);
+      }
+    }
+  });
 }
 function wireStorageWatcher() {
   chromeLocalStorage.onChange(() => {
@@ -162,7 +174,11 @@ function wireNavigationInjection() {
   chrome.webNavigation.onCommitted.addListener(
     ({ tabId, frameId, url }) => {
       console.log(tabId, frameId, url, 'tabId, frameId, url');
-      console.log('有页面加载 onCommitted', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'), url);
+      console.log(
+        '有页面加载 onCommitted',
+        dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'),
+        url
+      );
       try {
         injectCfgToPage({ tabId, frameId, url });
       } catch (_) {
@@ -179,7 +195,15 @@ function wireNavigationInjection() {
 chrome.runtime.onInstalled.addListener(async () => {
   await initConfig();
   await ensureScripts();
+
+  // 创建右键菜单
+  chrome.contextMenus.create({
+    id: 'open_mock_panel',
+    title: '打开mock面板',
+    contexts: ['action'],
+  });
 });
+
 chrome.runtime.onStartup.addListener(async () => {
   await ensureScripts();
 });
@@ -187,4 +211,4 @@ wireRuntimeMessaging();
 wireStorageWatcher();
 wireNavigationInjection();
 
-console.log('background执行')
+console.debug('background执行');

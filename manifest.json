@@ -15,7 +15,8 @@
     "debugger",
     "scripting",
     "sidePanel",
-    "clipboardWrite"
+    "clipboardWrite",
+    "contextMenus"
   ],
   "host_permissions": ["http://*/*", "https://*/*"],
   "background": {
@@ -31,9 +32,7 @@
     "default_title": "request-master"
   },
   "options_page": "src/options/index.html",
-  "side_panel": {
-    "default_path": "src/sidebar/index.html"
-  },
+
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
