@@ -16,8 +16,8 @@ export default (defineConfig(({ env, envMode, command }) => {
     // 多入口配置
     source: {
       entry: {
-        // 主应用入口 - sidebar
-        'src/sidebar/index': resolve(__dirname, 'src/sidebar/index.ts'),
+        // 主应用入口 - mockPanel
+        'src/mockPanel/index': resolve(__dirname, 'src/mockPanel/index.ts'),
         // popup 入口 - 修改为 index 以匹配 manifest.json
         'src/popup/index': resolve(__dirname, 'src/popup/index.ts'),
         // options 入口 - 修改为 index 以匹配 manifest.json
@@ -80,7 +80,7 @@ export default (defineConfig(({ env, envMode, command }) => {
       template: ({ entryName }) => {
         // 为不同入口指定不同的 HTML 模板
         const templateMap: Record<string, string> = {
-          'src/sidebar/index': './src/sidebar/index.html',
+          'src/mockPanel/index': './src/mockPanel/index.html',
           'src/popup/index': './src/popup/index.html',
           'src/options/index': './src/options/index.html',
         };

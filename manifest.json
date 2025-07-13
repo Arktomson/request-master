@@ -18,6 +18,7 @@
     "clipboardWrite",
     "contextMenus"
   ],
+  "homepage_url": "https://github.com/Arktomson/request-master",
   "host_permissions": ["http://*/*", "https://*/*"],
   "background": {
     "service_worker": "src/background/index.js"
