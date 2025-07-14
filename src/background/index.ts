@@ -47,6 +47,7 @@ async function initConfig() {
     queryPanelVisible: true,
     headersPanelVisible: true,
     bodyPanelVisible: true,
+    isPathMatch: false,
   };
   for (const [key, val] of Object.entries(defaultSettings)) {
     if (isNil(stored[key])) {

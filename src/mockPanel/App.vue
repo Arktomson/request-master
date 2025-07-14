@@ -11,53 +11,30 @@
       <!-- 中间主要内容区 -->
       <div class="content-area">
         <!-- 请求监测区域 -->
-        <MonitorSection
-          ref="monitorSectionRef"
-          :requestList="requestList"
-          :selectedRequestIndex="selectedRequestIndex"
-          @select-request="selectRequest"
-          @clear-requestList="handleClearRequests"
-          @delete-request="deleteRequest"
-          @add-to-mock="addRequestToMock"
-        />
+        <MonitorSection ref="monitorSectionRef" :requestList="requestList" :selectedRequestIndex="selectedRequestIndex"
+          @select-request="selectRequest" @clear-requestList="handleClearRequests" @delete-request="deleteRequest"
+          @add-to-mock="addRequestToMock" />
 
         <!-- 可拖拽分隔线(垂直方向) -->
         <ResizeHandle direction="horizontal" @resize="handleHorizontalResize" />
 
         <!-- Mock列表区域 -->
-        <MockSection
-          ref="mockSectionRef"
-          :mockList="mockList"
-          :selectedMockIndex="selectedMockIndex"
-          @select-mock="selectMock"
-          @edit-mock="editMock"
-          @delete-mock="deleteMock"
-          @clear-all-mocks="handleClearAllMocks"
-        />
+        <MockSection ref="mockSectionRef" :mockList="mockList" :selectedMockIndex="selectedMockIndex"
+          @select-mock="selectMock" @edit-mock="editMock" @delete-mock="deleteMock"
+          @clear-all-mocks="handleClearAllMocks" />
       </div>
 
       <!-- 可拖拽分隔线 -->
       <ResizeHandle @resize="handleVerticalResize" />
 
       <!-- 右侧JSON查看器 -->
-      <JsonViewer
-        ref="jsonViewerRef"
-        :data="currentSelectedData"
-        :type="currentSelectedType"
-        @save-response="handleSaveResponse"
-        @save-query="handleSaveQuery"
-        @save-headers="handleSaveHeaders"
-        @save-body="handleSaveBody"
-      />
+      <JsonViewer ref="jsonViewerRef" :data="currentSelectedData" :type="currentSelectedType"
+        @save-response="handleSaveResponse" @save-query="handleSaveQuery" @save-headers="handleSaveHeaders"
+        @save-body="handleSaveBody" />
     </div>
 
     <!-- Mock弹窗 -->
-    <MockDialog
-      v-model="mockDialogVisible"
-      :isEditMode="isEditMode"
-      :currentMock="currentMock"
-      @save="saveMock"
-    />
+    <MockDialog v-model="mockDialogVisible" :isEditMode="isEditMode" :currentMock="currentMock" @save="saveMock" />
   </div>
 </template>
 
@@ -70,7 +47,7 @@ import {
   watch,
 } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { chromeLocalStorage, urlApart, messageToContent } from '@/utils';
+import { chromeLocalStorage, urlApart, messageToContent, generateCacheKey, generateCacheKeyFromQueryString } from '@/utils';
 // 导入组件
 import Header from './components/Header.vue';
 import SidebarMenu from './components/SidebarMenu.vue';
@@ -323,7 +300,11 @@ const handleSaveHeaders = async (content: string) => {
   // }
 };
 
-const handleSaveBody = async (content: string) => {
+const handleSaveBody = async (body: string) => {
+  selectedMock.value.params = body;
+  selectedMock.value.cacheKey = generateCacheKey(selectedMock.value.url, JSON.parse(body), selectedMock.value.method);
+  chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
+  ElMessage.success('修改已保存!');
   // 只处理Mock的Body保存
   // selectedMock.value.params = content;
   // chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
@@ -405,6 +386,7 @@ const preProcessRequestData = (data: any) => {
 };
 
 const onPageHide = () => {
+  console.log('onPageHide');
   window.removeEventListener('resize', initLayout);
   chromeLocalStorage.set({
     mockList: toRaw(mockList.value),
@@ -414,12 +396,12 @@ const onPageHide = () => {
 // 设置消息监听
 const setupMessageListener = () => {
   chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
-      if (message.type === 'new_request_data') {
-        requestList.value.push(preProcessRequestData(message.data));
-      } else if (message.type === 'batch_request_data') {
-        requestList.value = message.data.map(preProcessRequestData);
-      }
-     sendResponse({ success: true });
+    if (message.type === 'new_request_data') {
+      requestList.value.push(preProcessRequestData(message.data));
+    } else if (message.type === 'batch_request_data') {
+      requestList.value = message.data.map(preProcessRequestData);
+    }
+    sendResponse({ success: true });
   });
 
   window.addEventListener('pagehide', onPageHide);

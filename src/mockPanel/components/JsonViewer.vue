@@ -9,6 +9,7 @@
       <el-checkbox v-model="showQueryPanel" label="显示Query参数" />
       <el-checkbox v-model="showHeaderPanel" label="显示Headers" />
       <el-checkbox v-model="showBodyPanel" label="显示Body参数" />
+      <el-checkbox v-model="isPathMatch" label="仅path匹配" />
     </div>
 
     <!-- Query参数面板 -->
@@ -88,6 +89,7 @@ const props = defineProps<{
 const showQueryPanel = ref(true);
 const showHeaderPanel = ref(true);
 const showBodyPanel = ref(true);
+const isPathMatch = ref(false);
 
 // 面板区域ref
 const jsonViewerAreaRef = ref<HTMLElement | null>(null);
@@ -222,7 +224,7 @@ const createEditors = async () => {
       value: queryContent.value,
       language: 'json',
       theme: 'vs',
-      readOnly: props.type !== 'mock', // 根据类型设置只读状态
+      readOnly: isReadonly.value, // 根据类型设置只读状态
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
       automaticLayout: true,
@@ -231,7 +233,7 @@ const createEditors = async () => {
     // 监听内容变化，自动保存（仅mock类型）
     queryEditor.onDidChangeModelContent((e) => {
       if (e.isFlush) return;
-      if (isReadonly.value) {
+      if (!isReadonly.value) {
         const newValue = queryEditor!.getValue();
         try {
           JSON.parse(newValue);
@@ -250,7 +252,7 @@ const createEditors = async () => {
       value: headerContent.value,
       language: 'json',
       theme: 'vs',
-      readOnly: props.type !== 'mock', // 根据类型设置只读状态
+      readOnly: isReadonly.value, // 根据类型设置只读状态
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
       automaticLayout: true,
@@ -259,7 +261,7 @@ const createEditors = async () => {
     // 监听内容变化，自动保存（仅mock类型）
     headersEditor.onDidChangeModelContent((e) => {
       if (e.isFlush) return;
-      if (isReadonly.value) {
+      if (!isReadonly.value) {
         const newValue = headersEditor!.getValue();
         try {
           JSON.parse(newValue);
@@ -278,7 +280,7 @@ const createEditors = async () => {
       value: bodyContent.value,
       language: 'json',
       theme: 'vs',
-      readOnly: props.type !== 'mock', // 根据类型设置只读状态
+      readOnly: isReadonly.value, // 根据类型设置只读状态
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
       automaticLayout: true,
@@ -287,7 +289,7 @@ const createEditors = async () => {
     // 监听内容变化，自动保存（仅mock类型）
     bodyEditor.onDidChangeModelContent((e) => {
       if (e.isFlush) return;
-      if (isReadonly.value) {
+      if (!isReadonly.value) {
         const newValue = bodyEditor!.getValue();
         try {
           JSON.parse(newValue);
@@ -301,6 +303,7 @@ const createEditors = async () => {
 };
 
 const onPageHide = () => {
+  console.log('onPageHide1');
   editor?.dispose();
   queryEditor?.dispose();
   headersEditor?.dispose();
@@ -310,13 +313,17 @@ const onPageHide = () => {
     queryPanelVisible: showQueryPanel.value,
     headersPanelVisible: showHeaderPanel.value,
     bodyPanelVisible: showBodyPanel.value,
+    isPathMatch: isPathMatch.value,
   });
+  console.log('执行')
 };
 onMounted(async () => {
-  const { queryPanelVisible, headersPanelVisible, bodyPanelVisible } = await chromeLocalStorage.get(['queryPanelVisible', 'headersPanelVisible', 'bodyPanelVisible']);
+  const { queryPanelVisible, headersPanelVisible, bodyPanelVisible, isPathMatch: isPathMatchInit } = await chromeLocalStorage.get(['queryPanelVisible', 'headersPanelVisible', 'bodyPanelVisible', 'isPathMatch']);
+
   showQueryPanel.value = queryPanelVisible ?? false;
   showHeaderPanel.value = headersPanelVisible ?? false;
   showBodyPanel.value = bodyPanelVisible ?? false;
+  isPathMatch.value = isPathMatchInit ?? false;
   createEditors();
   window.addEventListener('pagehide', onPageHide);
 });
@@ -483,6 +490,7 @@ const emit = defineEmits<{
 
   .panel-controls {
     display: flex;
+    flex-wrap: wrap;
     gap: 16px;
     padding: 8px 12px;
     background-color: #f5f7fa;

@@ -102,6 +102,7 @@ export function urlApart(url: string) {
     return {
       path: `${urlObj.pathname}${urlObj.search}${urlObj.hash}`,
       purePath: urlObj.pathname,
+      origin: urlObj.origin,
       query: urlObj.search,
       hash: urlObj.hash,
     }

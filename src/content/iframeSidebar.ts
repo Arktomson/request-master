@@ -97,7 +97,7 @@ class IframeSidebar {
 
     // 设置iframe源 - 使用扩展的sidebar页面
     const chrome = window.chrome;
-    this.iframe.src = chrome.runtime.getURL('src/sidebar/index.html');
+    this.iframe.src = chrome.runtime.getURL('src/mockPanel/index.html');
 
     // 添加一个关闭按钮
     const closeBtn = document.createElement('div');

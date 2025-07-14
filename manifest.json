@@ -53,7 +53,7 @@
       "resources": [
         "src/assets/*",
         "src/content/ajaxHook.js",
-        "src/sidebar/index.html",
+        "src/mockPanel/index.html",
         "static/css/*",
         "static/js/*"
       ],

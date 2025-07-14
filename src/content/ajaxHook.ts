@@ -3,7 +3,7 @@
 
 import { ProcessStatus, serverTempErrorCodes } from '@/config';
 import { AjaxHookRequest, AjaxHookResponse } from '@/types/ajaxHook';
-import { customEventSend, generateCacheKey, normalizeUrl } from '@/utils';
+import { customEventSend, generateCacheKey, normalizeUrl, urlApart } from '@/utils';
 import { ajaxInterface } from './ajaxInterface';
 import { Setting } from '@/types';
 import { cacheManager } from './cacheManager';
@@ -66,7 +66,7 @@ function beginHook() {
   let monitorEnabled = true;
   let disasterRecoveryProcessing = false;
   let urlMatch = false;
-
+  let isPathMatch = false;
 
 
   console.log('启动ajaxHook', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
@@ -79,12 +79,14 @@ function beginHook() {
       mockList: mockListInit = [],
       mockEnabled: mockEnabledInit,
       urlMatch: urlMatchInit,
+      isPathMatch: isPathMatchInit,
     } = window.__HOOK_CFG;
     monitorEnabled = monitorEnabledInit;
     disasterRecoveryProcessing = disasterRecoveryProcessingInit;
     mockList = mockListInit;
     mockEnabled = mockEnabledInit;
     urlMatch = urlMatchInit;
+    isPathMatch = isPathMatchInit;
     alreadyConfigInit = true;
   }
   console.log(
@@ -95,7 +97,28 @@ function beginHook() {
   );
   if (monitorEnabled || (urlMatch && disasterRecoveryProcessing)) {
     const ajaxHooker = ajaxInterface();
-    ajaxHooker.hook((request: AjaxHookRequest) => {
+    ajaxHooker.hook(async (request: AjaxHookRequest) => {
+      while(!window.__HOOK_CFG) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        console.warn('等待配置中ing', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
+      }
+      if(!alreadyConfigInit) { 
+        const {
+          monitorEnabled: monitorEnabledInit,
+          disasterRecoveryProcessing: disasterRecoveryProcessingInit,
+          mockList: mockListInit = [],
+          mockEnabled: mockEnabledInit,
+          urlMatch: urlMatchInit,
+          isPathMatch: isPathMatchInit,
+        } = window.__HOOK_CFG;
+        monitorEnabled = monitorEnabledInit;
+        disasterRecoveryProcessing = disasterRecoveryProcessingInit;
+        mockList = mockListInit;
+        mockEnabled = mockEnabledInit;
+        urlMatch = urlMatchInit;
+        isPathMatch = isPathMatchInit;
+        alreadyConfigInit = true;
+      }
       console.log(
         'ajaxHooker kp',
         request,
@@ -103,7 +126,17 @@ function beginHook() {
       );
       const cacheKey = getCacheKey(request);
       if(mockEnabled){
-        const mock = mockList.find((item: any) => item.cacheKey === cacheKey);
+        const mock = mockList.find((item: any) => {
+          console.log(isPathMatch, 'isPathMatch');
+          console.log(mockList, 'mockList');
+          console.log(request, 'request');
+          if(isPathMatch) {
+            const apartCurUrl = urlApart(request.url?.startsWith('http') ? request.url : window.location.origin + request.url);
+            return `${item.origin}${item.purePath}` === `${apartCurUrl.origin}${apartCurUrl.purePath}` && item.method === request.method;
+          } else {
+            return item.cacheKey === cacheKey;
+          }
+        });
         if (mock) {
           request.data = mock.params;
           request.headers = mock.headers;
@@ -112,25 +145,7 @@ function beginHook() {
       request.response = async (resp: AjaxHookResponse) => {
         console.warn("已进入request.response");
         console.warn('window.__HOOK_CFG', !!window.__HOOK_CFG);
-        while(!window.__HOOK_CFG) {
-          await new Promise(resolve => setTimeout(resolve, 10));
-          console.warn('等待配置中ing', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
-        }
-        if(!alreadyConfigInit) { 
-          const {
-            monitorEnabled: monitorEnabledInit,
-            disasterRecoveryProcessing: disasterRecoveryProcessingInit,
-            mockList: mockListInit = [],
-            mockEnabled: mockEnabledInit,
-            urlMatch: urlMatchInit,
-          } = window.__HOOK_CFG;
-          monitorEnabled = monitorEnabledInit;
-          disasterRecoveryProcessing = disasterRecoveryProcessingInit;
-          mockList = mockListInit;
-          mockEnabled = mockEnabledInit;
-          urlMatch = urlMatchInit;
-          alreadyConfigInit = true;
-        }
+
         if (!filterSituation(resp)) {
           return resp;
         }
@@ -144,7 +159,14 @@ function beginHook() {
               let mockData = json;
               if (mockEnabled) {
                 // 🚀 性能优化：使用Map查找，时间复杂度从O(n)降到O(1)
-                const mock = mockList.find((item: any) => item.cacheKey === cacheKey);
+                const mock = mockList.find((item: any) => {
+                  if(isPathMatch) {
+                    const apartCurUrl = urlApart(request.url?.startsWith('http') ? request.url : window.location.origin + request.url);
+                    return `${item.origin}${item.purePath}` === `${apartCurUrl.origin}${apartCurUrl.purePath}` && item.method === request.method;
+                  } else {
+                    return item.cacheKey === cacheKey;
+                  }
+                });
                 if (mock) {
                   json = mock.response;
                   mockData = mock.response;
