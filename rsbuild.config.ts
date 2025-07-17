@@ -144,6 +144,7 @@ export default (defineConfig(({ env, envMode, command }) => {
       chunkSplit: {
         strategy: 'all-in-one',
       },
+      removeConsole: isProd,
     },
   }
 }) as RsbuildConfig);
