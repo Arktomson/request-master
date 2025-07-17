@@ -107,7 +107,7 @@ class IframeSidebar {
       return {
         ...baseStyle,
         top: '-20px',
-        right: '30px',
+        left: '0px',
         borderRadius: '50% 50% 0 0',
         zIndex: (this.zIndex + 2).toString(),
         boxShadow: '0 -2px 4px rgba(0, 0, 0, 0.2)',
