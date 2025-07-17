@@ -9,19 +9,19 @@
       <SidebarMenu v-model:activeTab="activeTab" />
 
       <!-- 中间主要内容区 -->
-      <div class="content-area">
+      <div class="content-area" :class="{ 'bottom-layout': sidebarPosition === 'bottom' }">
         <!-- 请求监测区域 -->
         <MonitorSection ref="monitorSectionRef" :requestList="requestList" :selectedRequestIndex="selectedRequestIndex"
           @select-request="selectRequest" @clear-requestList="handleClearRequests" @delete-request="deleteRequest"
-          @add-to-mock="addRequestToMock" />
+          @add-to-mock="addRequestToMock" class="monitor-section" />
 
         <!-- 可拖拽分隔线(垂直方向) -->
-        <ResizeHandle direction="horizontal" @resize="handleHorizontalResize" />
+        <ResizeHandle :direction="sidebarPosition === 'bottom' ? 'vertical' : 'horizontal'" @resize="handleHorizontalResize" class="resize-handle" />
 
         <!-- Mock列表区域 -->
         <MockSection ref="mockSectionRef" :mockList="mockList" :selectedMockIndex="selectedMockIndex"
           @select-mock="selectMock" @edit-mock="editMock" @delete-mock="deleteMock"
-          @clear-all-mocks="handleClearAllMocks" />
+          @clear-all-mocks="handleClearAllMocks" class="mock-section" />
       </div>
 
       <!-- 可拖拽分隔线 -->
@@ -67,6 +67,7 @@ const selectedMockIndex = ref(-1);
 const mockDialogVisible = ref(false);
 const isEditMode = ref(false);
 const editingIndex = ref(-1);
+const sidebarPosition = ref<'right' | 'bottom'>('right');
 const currentMock = ref({
   url: '',
   method: 'GET',
@@ -343,19 +344,37 @@ const handleHorizontalResize = (size: number) => {
   const container = monitorSection?.parentElement;
 
   if (monitorSection && mockSection && container) {
-    const containerHeight = container.getBoundingClientRect().height;
+    if (sidebarPosition.value === 'bottom') {
+      // 底部布局：水平调整宽度
+      const containerWidth = container.getBoundingClientRect().width;
+      const minWidth = 300;
+      const maxWidth = containerWidth - 250; // 保留足够空间给Mock区域
+      const newSize = Math.max(minWidth, Math.min(maxWidth, size));
 
-    // 确保调整后的高度不超出合理范围
-    const minHeight = 100;
-    const maxHeight = containerHeight - 120; // 保留足够空间给Mock区域
-    const newSize = Math.max(minHeight, Math.min(maxHeight, size));
+      const widthPercent = (newSize / containerWidth) * 100;
 
-    const heightPercent = (newSize / containerHeight) * 100;
+      monitorSection.style.width = `${widthPercent}%`;
+      monitorSection.style.minWidth = `${minWidth}px`;
+      monitorSection.style.height = '100%';
+      mockSection.style.width = `calc(100% - ${widthPercent}% - 3px)`; // 减去分隔线的宽度
+      mockSection.style.minWidth = '250px';
+      mockSection.style.height = '100%';
+    } else {
+      // 右侧布局：垂直调整高度
+      const containerHeight = container.getBoundingClientRect().height;
+      const minHeight = 100;
+      const maxHeight = containerHeight - 120; // 保留足够空间给Mock区域
+      const newSize = Math.max(minHeight, Math.min(maxHeight, size));
 
-    monitorSection.style.height = `${heightPercent}%`;
-    monitorSection.style.minHeight = `${minHeight}px`;
-    mockSection.style.height = `calc(100% - ${heightPercent}% - 3px)`; // 减去分隔线的高度
-    mockSection.style.minHeight = `100px`;
+      const heightPercent = (newSize / containerHeight) * 100;
+
+      monitorSection.style.height = `${heightPercent}%`;
+      monitorSection.style.minHeight = `${minHeight}px`;
+      monitorSection.style.width = '100%';
+      mockSection.style.height = `calc(100% - ${heightPercent}% - 3px)`; // 减去分隔线的高度
+      mockSection.style.minHeight = '100px';
+      mockSection.style.width = '100%';
+    }
   }
 };
 
@@ -372,9 +391,17 @@ const initLayout = () => {
   // 初始化水平分割比例
   const contentArea = document.querySelector('.content-area') as HTMLElement;
   if (contentArea) {
-    const contentHeight = contentArea.getBoundingClientRect().height;
-    const monitorHeight = contentHeight * 0.6; // 监控区域占60%
-    handleHorizontalResize(monitorHeight);
+    if (sidebarPosition.value === 'bottom') {
+      // 底部布局：初始化水平分割（宽度）
+      const contentWidth = contentArea.getBoundingClientRect().width;
+      const monitorWidth = contentWidth * 0.6; // 监控区域占60%
+      handleHorizontalResize(monitorWidth);
+    } else {
+      // 右侧布局：初始化垂直分割（高度）
+      const contentHeight = contentArea.getBoundingClientRect().height;
+      const monitorHeight = contentHeight * 0.6; // 监控区域占60%
+      handleHorizontalResize(monitorHeight);
+    }
   }
 };
 
@@ -404,6 +431,13 @@ const setupMessageListener = () => {
     sendResponse({ success: true });
   });
 
+  chromeLocalStorage.onChange((changes) => {
+    if (changes.sidebarPosition && changes.sidebarPosition.newValue !== sidebarPosition.value){
+      sidebarPosition.value = changes.sidebarPosition.newValue;
+      initLayout();
+    }
+  },['sidebarPosition']);
+
   window.addEventListener('pagehide', onPageHide);
 };
 
@@ -423,11 +457,13 @@ watch(
   { deep: true }
 );
 
+
 // 生命周期钩子
 onMounted(async () => {
   // 加载Mock列表
-  const storedMockList = (await chromeLocalStorage.get('mockList')) || [];
-  mockList.value = storedMockList;
+  const { mockList: mockListData = [], sidebarPosition: sidebarPositionData = 'right' } = await chromeLocalStorage.get(['mockList', 'sidebarPosition']);
+  mockList.value = mockListData;
+  sidebarPosition.value = sidebarPositionData;
 
   // // 等待DOM渲染完成后初始化布局
   setTimeout(initLayout, 100);
@@ -464,6 +500,43 @@ onMounted(async () => {
       flex-direction: column;
       overflow: hidden;
       border-right: 1px solid #ebeef5;
+      
+      // 底部布局时改为水平排列
+      &.bottom-layout {
+        flex-direction: row;
+        max-width: none;
+        
+        // 在底部布局时，MonitorSection 和 MockSection 水平排列
+        :deep(.monitor-section) {
+          flex: 1;
+          min-width: 300px;
+          max-width: 60%;
+          border-right: 1px solid #ebeef5;
+          height: 100%;
+          overflow: hidden;
+        }
+        
+        :deep(.mock-section) {
+          flex: 1;
+          min-width: 250px;
+          border-right: none;
+          height: 100%;
+          overflow: hidden;
+        }
+        
+        // 调整 ResizeHandle 的方向
+        :deep(.resize-handle) {
+          width: 3px !important;
+          height: 100% !important;
+          cursor: col-resize !important;
+          
+          &.horizontal {
+            width: 3px !important;
+            height: 100% !important;
+            cursor: col-resize !important;
+          }
+        }
+      }
     }
   }
 }
