@@ -2,6 +2,11 @@
   <div class="sidebar-header">
     <div class="sidebar-title">Mock工具</div>
     <div class="sidebar-header-right">
+      <span>切换侧边栏位置</span>
+      <el-select v-model="sidebarPosition" @change="handleSidebarPositionChange">
+        <el-option label="右侧" value="right" />
+        <el-option label="底部" value="bottom" />
+      </el-select>
       <span>是否缓存侧边栏</span>
       <el-switch v-model="sidebarIfCacheState" @change="handleSidebarIfCacheStateChange" />
     </div>
@@ -9,10 +14,23 @@
 </template>
 
 <script setup lang="ts">
-import { chromeLocalStorage } from '@/utils';
+import { chromeLocalStorage, messageToContent } from '@/utils';
 import { onMounted, ref } from 'vue'
-import { ElSwitch } from 'element-plus';
+import { ElSwitch, ElSelect, ElOption } from 'element-plus';
 const sidebarIfCacheState = ref(false);
+const sidebarPosition = ref('right');
+
+function handleSidebarPositionChange(value: string) {
+  chromeLocalStorage.set({
+    'sidebarPosition': value
+  })
+  messageToContent({
+    type: 'toggle_sidebar_position',
+    data: {
+      position: value
+    }
+  })
+}
 
 function handleSidebarIfCacheStateChange(value: boolean | string | number) {
   chromeLocalStorage.set({
@@ -21,8 +39,9 @@ function handleSidebarIfCacheStateChange(value: boolean | string | number) {
 }
 
 onMounted(async () => {
-  const sidebarIfCacheStateInStorage = await chromeLocalStorage.get('sidebarIfCacheState')
+  const { sidebarIfCacheState: sidebarIfCacheStateInStorage, sidebarPosition: sidebarPositionInStorage } = await chromeLocalStorage.get(['sidebarIfCacheState', 'sidebarPosition'])
   sidebarIfCacheState.value = sidebarIfCacheStateInStorage
+  sidebarPosition.value = sidebarPositionInStorage
 })
 // 无需props和事件
 </script>
@@ -31,8 +50,9 @@ onMounted(async () => {
 .sidebar-header {
   display: flex;
   align-items: center;
-  padding: 3px 0px;
+  padding: 8px 0px;
   border-bottom: 1px solid #ebeef5;
+  min-height: 40px;
   
   .sidebar-title {
     font-size: 16px;
@@ -46,9 +66,19 @@ onMounted(async () => {
     margin-right: 10px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-size: 14px;
     color: #606266;
+    white-space: nowrap;
+    
+    span {
+      margin-right: 4px;
+    }
+    
+    .el-select {
+      width: 80px;
+      margin-right: 8px;
+    }
   }
 }
 </style> 

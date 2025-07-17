@@ -48,6 +48,8 @@ async function initConfig() {
     headersPanelVisible: true,
     bodyPanelVisible: true,
     isPathMatch: false,
+    sidebarPosition: 'right',
+    sidebarHeight: 600,
   };
   for (const [key, val] of Object.entries(defaultSettings)) {
     if (isNil(stored[key])) {

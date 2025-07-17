@@ -5,20 +5,127 @@ class IframeSidebar {
   private iframe: HTMLIFrameElement | null = null;
   private isVisible = false;
   private sidebarWidth = 800; // 默认侧边栏宽度调整为800px
+  private sidebarHeight = 400; // 默认侧边栏高度
+  private position: 'right' | 'bottom' = 'right'; // 侧边栏位置
   private zIndex = 999999; // 确保在页面最前面
   private isDragging = false;
   private initialX = 0;
+  private initialY = 0;
   private initialWidth = 0;
+  private initialHeight = 0;
   private minWidth = 400; // 最小宽度
   private maxWidth = 1200; // 最大宽度，提高到1200px
-  private maxWidthPercent = 0.75; // 最大宽度不超过屏幕宽度的65%
+  private minHeight = 300; // 最小高度
+  private maxHeight = 900; // 最大高度
+  private maxWidthPercent = 1; // 最大宽度不超过屏幕宽度的65%
+  private maxHeightPercent = 1; // 最大高度不超过屏幕高度的60%
 
   constructor() {}
 
+  // 根据位置获取容器样式
+  private getContainerStyle() {
+    const baseStyle = {
+      position: 'fixed',
+      zIndex: this.zIndex.toString(),
+      background: '#ffffff',
+    };
+
+    if (this.position === 'right') {
+      return {
+        ...baseStyle,
+        top: '0',
+        right: '0',
+        width: `${this.sidebarWidth}px`,
+        height: '100vh',
+        transition: 'right 0.3s ease',
+        boxShadow: '-2px 0 10px rgba(0, 0, 0, 0.15)',
+      };
+    } else {
+      return {
+        ...baseStyle,
+        bottom: '0',
+        left: '0',
+        width: '100vw',
+        height: `${this.sidebarHeight}px`,
+        transition: 'bottom 0.3s ease',
+        boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.15)',
+        paddingRight: '20px', // 为滚动条留出空间
+      };
+    }
+  }
+
+  // 根据位置获取拖动条样式
+  private getResizeHandleStyle() {
+    const baseStyle = {
+      position: 'absolute',
+      backgroundColor: 'transparent',
+      zIndex: (this.zIndex + 1).toString(),
+    };
+
+    if (this.position === 'right') {
+      return {
+        ...baseStyle,
+        top: '0',
+        left: '0',
+        width: '5px',
+        height: '100%',
+        cursor: 'col-resize',
+      };
+    } else {
+      return {
+        ...baseStyle,
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '5px',
+        cursor: 'row-resize',
+      };
+    }
+  }
+
+  // 根据位置获取关闭按钮样式
+  private getCloseBtnStyle() {
+    const baseStyle = {
+      position: 'absolute',
+      width: '20px',
+      height: '20px',
+      background: '#333',
+      color: '#fff',
+      textAlign: 'center',
+      lineHeight: '20px',
+      cursor: 'pointer',
+    };
+
+    if (this.position === 'right') {
+      return {
+        ...baseStyle,
+        top: '0px',
+        left: '-20px',
+        borderRadius: '50% 0 0 50%',
+      };
+    } else {
+      return {
+        ...baseStyle,
+        top: '-20px',
+        right: '30px',
+        borderRadius: '50% 50% 0 0',
+        zIndex: (this.zIndex + 2).toString(),
+        boxShadow: '0 -2px 4px rgba(0, 0, 0, 0.2)',
+      };
+    }
+  }
+
   public async init() {
-    const { sideBarLastVisible } = await chromeLocalStorage.get(
-      ['sideBarLastVisible', 'monitorEnabled']
+    const { sideBarLastVisible, sidebarPosition, sidebarHeight } = await chromeLocalStorage.get(
+      ['sideBarLastVisible', 'monitorEnabled', 'sidebarPosition', 'sidebarHeight']
     );
+
+    if (sidebarPosition) {
+      this.position = sidebarPosition;
+    }
+    if (sidebarHeight) {
+      this.sidebarHeight = sidebarHeight;
+    }
 
     if (sideBarLastVisible) {
       this.toggle(true);
@@ -32,7 +139,7 @@ class IframeSidebar {
       return;
     }
 
-    // 尝试从存储中加载之前保存的宽度
+    // 尝试从存储中加载之前保存的宽度和高度
     try {
       const savedWidth = await chromeLocalStorage.get('sidebarWidth');
       if (savedWidth && typeof savedWidth === 'number') {
@@ -42,45 +149,39 @@ class IframeSidebar {
       console.error('加载侧边栏宽度失败:', error);
     }
 
-    // 应用屏幕宽度百分比限制
+    // 应用屏幕尺寸百分比限制
     const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
     const maxWidthByPercent = screenWidth * this.maxWidthPercent;
+    const maxHeightByPercent = screenHeight * this.maxHeightPercent;
     const effectiveMaxWidth = Math.min(this.maxWidth, maxWidthByPercent);
+    const effectiveMaxHeight = Math.min(this.maxHeight, maxHeightByPercent);
 
-    // 确保侧边栏宽度在允许范围内
+    // 确保侧边栏尺寸在允许范围内
     this.sidebarWidth = Math.max(
       this.minWidth,
       Math.min(effectiveMaxWidth, this.sidebarWidth)
+    );
+    this.sidebarHeight = Math.max(
+      this.minHeight,
+      Math.min(effectiveMaxHeight, this.sidebarHeight)
     );
 
     // 创建iframe容器
     const container = document.createElement('div');
     container.id = 'request-master-sidebar-container';
-    Object.assign(container.style, {
-      position: 'fixed',
-      top: '0',
-      right: '0',
-      width: `${this.sidebarWidth}px`,
-      height: '100vh',
-      zIndex: this.zIndex.toString(),
-      transition: 'right 0.3s ease',
-      boxShadow: '-2px 0 10px rgba(0, 0, 0, 0.15)',
-      background: '#ffffff',
-    });
+    
+    // 根据位置设置不同的样式
+    const containerStyle = this.getContainerStyle();
+    Object.assign(container.style, containerStyle);
 
-    // 创建调整宽度的拖动条
+    // 创建调整尺寸的拖动条
     const resizeHandle = document.createElement('div');
     resizeHandle.id = 'request-master-sidebar-resize';
-    Object.assign(resizeHandle.style, {
-      position: 'absolute',
-      top: '0',
-      left: '0',
-      width: '5px',
-      height: '100%',
-      cursor: 'col-resize',
-      backgroundColor: 'transparent',
-      zIndex: (this.zIndex + 1).toString(),
-    });
+    
+    // 根据位置设置不同的拖动条样式
+    const resizeHandleStyle = this.getResizeHandleStyle();
+    Object.assign(resizeHandle.style, resizeHandleStyle);
 
     // 添加拖动事件
     resizeHandle.addEventListener('mousedown', this.handleResizeStart);
@@ -102,19 +203,10 @@ class IframeSidebar {
     // 添加一个关闭按钮
     const closeBtn = document.createElement('div');
     closeBtn.id = 'request-master-sidebar-close';
-    Object.assign(closeBtn.style, {
-      position: 'absolute',
-      top: '0px',
-      left: '-20px',
-      width: '20px',
-      height: '20px',
-      background: '#333',
-      color: '#fff',
-      textAlign: 'center',
-      lineHeight: '20px',
-      cursor: 'pointer',
-      borderRadius: '50% 0 0 50%',
-    });
+    
+    // 根据位置设置不同的关闭按钮样式
+    const closeBtnStyle = this.getCloseBtnStyle();
+    Object.assign(closeBtn.style, closeBtnStyle);
     closeBtn.textContent = '×';
 
     closeBtn.addEventListener('click', async () => {
@@ -131,17 +223,89 @@ class IframeSidebar {
     document.body.appendChild(container);
   }
 
+  // 调整页面布局为侧边栏让出空间（智能查找主要内容容器）
+  private adjustPageLayout(show: boolean) {
+    // 查找页面主要内容容器，优先级顺序：
+    // 1. 常见的主要内容容器选择器
+    // 2. body的第一个可见块级元素
+    // 3. 直接使用body
+    let targetElement: HTMLElement | null = null;
+    
+    // 尝试常见的主要内容容器选择器
+    const selectors = [
+      'main',
+      '#root',
+      '#app', 
+      '.app',
+      'body > div:first-child',
+      'body > div:first-of-type'
+    ];
+    
+    for (const selector of selectors) {
+      const element = document.querySelector(selector) as HTMLElement;
+      if (element && element.offsetHeight > 0) {
+        targetElement = element;
+        break;
+      }
+    }
+    
+    // 如果没找到，使用body的第一个可见块级元素
+    if (!targetElement) {
+      const children = Array.from(document.body.children) as HTMLElement[];
+      targetElement = children.find(child => {
+        const style = getComputedStyle(child);
+        return style.display !== 'none' && 
+               style.visibility !== 'hidden' &&
+               child.offsetHeight > 0 &&
+               child.id !== 'request-master-sidebar-container';
+      }) || null;
+    }
+    
+    // 最后回退到body
+    if (!targetElement) {
+      targetElement = document.body;
+    }
+    
+    console.log('找到目标元素:', targetElement.tagName, targetElement.id || targetElement.className);
+    
+    if (show) {
+      // 根据位置为侧边栏让出空间
+      if (this.position === 'right') {
+        targetElement.style.marginRight = `${this.sidebarWidth}px`;
+        targetElement.style.transition = 'margin-right 0.3s ease';
+        // 清除可能的底部边距
+        targetElement.style.marginBottom = '';
+      } else {
+        targetElement.style.marginBottom = `${this.sidebarHeight}px`;
+        targetElement.style.transition = 'margin-bottom 0.3s ease';
+        // 清除可能的右边距
+        targetElement.style.marginRight = '';
+      }
+    } else {
+      // 隐藏时恢复
+      if (this.position === 'right') {
+        targetElement.style.marginRight = '0';
+        targetElement.style.transition = 'margin-right 0.3s ease';
+      } else {
+        targetElement.style.marginBottom = '0';
+        targetElement.style.transition = 'margin-bottom 0.3s ease';
+      }
+    }
+  }
+
   // 开始拖动调整大小
   private handleResizeStart = (e: MouseEvent) => {
     e.preventDefault();
     this.isDragging = true;
     this.initialX = e.clientX;
+    this.initialY = e.clientY;
 
     const container = document.getElementById(
       'request-master-sidebar-container'
     );
     if (container) {
       this.initialWidth = container.offsetWidth;
+      this.initialHeight = container.offsetHeight;
     }
 
     // 添加全局事件处理
@@ -158,7 +322,7 @@ class IframeSidebar {
       width: '100%',
       height: '100%',
       zIndex: (this.zIndex + 2).toString(),
-      cursor: 'col-resize',
+      cursor: this.position === 'right' ? 'col-resize' : 'row-resize',
     });
     document.body.appendChild(overlay);
   };
@@ -172,22 +336,42 @@ class IframeSidebar {
     );
     if (!container) return;
 
-    // 计算宽度变化，向左拖动为负值(增加宽度)，向右拖动为正值(减小宽度)
-    const offsetX = this.initialX - e.clientX;
-    let newWidth = this.initialWidth + offsetX;
+    if (this.position === 'right') {
+      // 右侧位置：计算新宽度
+      const deltaX = this.initialX - e.clientX;
+      let newWidth = this.initialWidth + deltaX;
 
-    // 基于屏幕宽度的限制
-    const screenWidth = window.innerWidth;
-    const maxWidthByPercent = screenWidth * this.maxWidthPercent;
+      // 基于屏幕宽度的限制
+      const screenWidth = window.innerWidth;
+      const maxWidthByPercent = screenWidth * this.maxWidthPercent;
+      const effectiveMaxWidth = Math.min(this.maxWidth, maxWidthByPercent);
 
-    // 取绝对最大宽度和相对最大宽度中较小的一个
-    const effectiveMaxWidth = Math.min(this.maxWidth, maxWidthByPercent);
+      // 限制最小和最大宽度
+      newWidth = Math.max(this.minWidth, Math.min(effectiveMaxWidth, newWidth));
 
-    // 限制最小和最大宽度
-    newWidth = Math.max(this.minWidth, Math.min(effectiveMaxWidth, newWidth));
+      // 更新容器宽度
+      container.style.width = `${newWidth}px`;
+      this.sidebarWidth = newWidth;
+    } else {
+      // 底部位置：计算新高度
+      const deltaY = this.initialY - e.clientY;
+      let newHeight = this.initialHeight + deltaY;
 
-    container.style.width = `${newWidth}px`;
-    this.sidebarWidth = newWidth;
+      // 基于屏幕高度的限制
+      const screenHeight = window.innerHeight;
+      const maxHeightByPercent = screenHeight * this.maxHeightPercent;
+      const effectiveMaxHeight = Math.min(this.maxHeight, maxHeightByPercent);
+
+      // 限制最小和最大高度
+      newHeight = Math.max(this.minHeight, Math.min(effectiveMaxHeight, newHeight));
+
+      // 更新容器高度
+      container.style.height = `${newHeight}px`;
+      this.sidebarHeight = newHeight;
+    }
+    
+    // 实时调整页面布局
+    this.adjustPageLayout(true);
   };
 
   // 结束拖动
@@ -204,34 +388,72 @@ class IframeSidebar {
       overlay.remove();
     }
 
-    // 保存新的宽度设置
-    chromeLocalStorage.set({ sidebarWidth: this.sidebarWidth });
+    // 保存新的尺寸设置
+    if (this.position === 'right') {
+      chromeLocalStorage.set({ sidebarWidth: this.sidebarWidth });
+    } else {
+      chromeLocalStorage.set({ sidebarHeight: this.sidebarHeight });
+    }
   };
 
   private hideSidebar() {
-    
     const container = document.getElementById(
       'request-master-sidebar-container'
     );
     if (container) {
-      container.style.right = `-${this.sidebarWidth}px`;
+      if (this.position === 'right') {
+        container.style.right = `-${this.sidebarWidth}px`;
+      } else {
+        container.style.bottom = `-${this.sidebarHeight}px`;
+      }
+      // 隐藏时恢复页面布局
+      this.adjustPageLayout(false);
     }
   }
 
   private destroySidebar() {
-    
     console.log('销毁侧边栏')
     const container = document.getElementById(
       'request-master-sidebar-container'
     );
     if (container) {
-      // 先添加过渡动画
-      container.style.right = `-${this.sidebarWidth}px`;
+      // 先恢复页面布局
+      this.adjustPageLayout(false);
+      // 添加过渡动画
+      if (this.position === 'right') {
+        container.style.right = `-${this.sidebarWidth}px`;
+      } else {
+        container.style.bottom = `-${this.sidebarHeight}px`;
+      }
 
       // 等待过渡动画完成后移除DOM元素
       setTimeout(() => {
         container.remove();
         this.iframe = null;
+        // 清理可能的页面布局调整
+        const selectors = [
+          'main',
+          '#root',
+          '#app', 
+          '.app',
+          'body > div:first-child',
+          'body > div:first-of-type'
+        ];
+        
+        // 清理所有可能的目标元素
+        for (const selector of selectors) {
+          const element = document.querySelector(selector) as HTMLElement;
+          if (element) {
+            element.style.marginRight = '';
+            element.style.marginBottom = '';
+            element.style.transition = '';
+          }
+        }
+        
+        // 也清理body本身
+        document.body.style.marginRight = '';
+        document.body.style.marginBottom = '';
+        document.body.style.transition = '';
 
         // 移除窗口大小变化的监听器
         window.removeEventListener('resize', this.handleWindowResize);
@@ -244,9 +466,17 @@ class IframeSidebar {
       'request-master-sidebar-container'
     );
     if (container) {
-      container.style.right = '0';
+      if (this.position === 'right') {
+        container.style.right = '0';
+      } else {
+        container.style.bottom = '0';
+      }
+      // 显示时调整页面布局，为侧边栏让出空间
+      this.adjustPageLayout(true);
     } else {
       this.createSidebar();
+      // 创建后立即调整页面布局
+      this.adjustPageLayout(true);
     }
   }
 
@@ -264,6 +494,9 @@ class IframeSidebar {
               message.visible,
               sidebarIfCacheState ? 'hide' : 'destroy'
             );
+          } else if (message.type === 'toggle_sidebar_position') {
+            console.log('toggle_sidebar_position', message.data.position)
+            this.togglePosition(message.data.position);
           }
           resolve({ success: true });
         });
@@ -283,18 +516,35 @@ class IframeSidebar {
     );
     if (!container) return;
 
-    // 计算基于新窗口大小的最大宽度
     const screenWidth = window.innerWidth;
-    const maxWidthByPercent = screenWidth * this.maxWidthPercent;
-    const effectiveMaxWidth = Math.min(this.maxWidth, maxWidthByPercent);
+    const screenHeight = window.innerHeight;
 
-    // 如果当前宽度超出新的最大宽度，则调整
-    if (this.sidebarWidth > effectiveMaxWidth) {
-      this.sidebarWidth = effectiveMaxWidth;
-      container.style.width = `${this.sidebarWidth}px`;
+    if (this.position === 'right') {
+      // 计算基于新窗口大小的最大宽度
+      const maxWidthByPercent = screenWidth * this.maxWidthPercent;
+      const effectiveMaxWidth = Math.min(this.maxWidth, maxWidthByPercent);
 
-      // 保存新的宽度设置
-      chromeLocalStorage.set({ sidebarWidth: this.sidebarWidth });
+      // 如果当前宽度超出新的最大宽度，则调整
+      if (this.sidebarWidth > effectiveMaxWidth) {
+        this.sidebarWidth = effectiveMaxWidth;
+        container.style.width = `${this.sidebarWidth}px`;
+
+        // 保存新的宽度设置
+        chromeLocalStorage.set({ sidebarWidth: this.sidebarWidth });
+      }
+    } else {
+      // 计算基于新窗口大小的最大高度
+      const maxHeightByPercent = screenHeight * this.maxHeightPercent;
+      const effectiveMaxHeight = Math.min(this.maxHeight, maxHeightByPercent);
+
+      // 如果当前高度超出新的最大高度，则调整
+      if (this.sidebarHeight > effectiveMaxHeight) {
+        this.sidebarHeight = effectiveMaxHeight;
+        container.style.height = `${this.sidebarHeight}px`;
+
+        // 保存新的高度设置
+        chromeLocalStorage.set({ sidebarHeight: this.sidebarHeight });
+      }
     }
   };
 
@@ -325,6 +575,66 @@ class IframeSidebar {
         visible: this.isVisible,
       },
     });
+  }
+
+  // 切换侧边栏位置
+  public togglePosition(position: 'right' | 'bottom') {
+    const wasVisible = this.isVisible;
+    
+    // 切换位置
+    this.position = position;
+    
+    // 保存新位置
+    chromeLocalStorage.set({ sidebarPosition: this.position });
+    
+    // 如果当前可见，需要重新创建侧边栏
+    if (wasVisible) {
+      // 先销毁现有的侧边栏
+      this.destroySidebarSync();
+      // 立即创建新的侧边栏
+      this.showSidebar();
+    }
+  }
+
+  // 同步销毁侧边栏（不等待动画）
+  private destroySidebarSync() {
+    console.log('同步销毁侧边栏');
+    const container = document.getElementById(
+      'request-master-sidebar-container'
+    );
+    if (container) {
+      // 先恢复页面布局
+      this.adjustPageLayout(false);
+      
+      // 立即移除DOM元素，不等待动画
+      container.remove();
+      this.iframe = null;
+      
+      // 清理可能的页面布局调整
+      const selectors = [
+        'main',
+        '#root',
+        '#app', 
+        '.app',
+        'body > div:first-child',
+        'body > div:first-of-type'
+      ];
+      
+      // 清理所有可能的目标元素
+      for (const selector of selectors) {
+        const element = document.querySelector(selector) as HTMLElement;
+        if (element) {
+          element.style.marginRight = '';
+          element.style.marginBottom = '';
+          element.style.transition = '';
+        }
+      }
+      
+      // 也清理body本身
+      document.body.style.marginRight = '';
+      document.body.style.marginBottom = '';
+      document.body.style.transition = '';
+    }
   }
 }
 console.log('iframeSidebar执行', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
