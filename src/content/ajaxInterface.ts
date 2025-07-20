@@ -14,6 +14,8 @@ export const ajaxInterface = function () {
         // 如果 json 方法不存在则直接返回
         if (res?.json) {
           res.json = modifier(res.json);
+        } else if (res?.text) {
+          res.text = JSON.stringify(modifier(JSON.parse(res.text)));
         }
       } else {
         const tranferJson = res.responseText

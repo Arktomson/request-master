@@ -112,7 +112,7 @@ async function ensureScripts() {
       {
         id: SCRIPT_ID,
         js: ['src/content/ajaxHook.js'],
-        matches: ['<all_urls>'],
+        matches: ['http://*/*', 'https://*/*'],
         runAt: 'document_start',
         world: 'MAIN',
         allFrames: false,
@@ -144,7 +144,6 @@ function wireRuntimeMessaging() {
           curCacheData.push(oneRequestData);
           await chromeSessionStorage.set({ curCacheData });
         } else if (message.type === 'sidebar_state_changed') {
-        } else {
         }
       } catch (e) {
         console.error('Background message error', e);
@@ -176,7 +175,9 @@ function wireStorageWatcher() {
 function wireNavigationInjection() {
   chrome.webNavigation.onCommitted.addListener(
     ({ tabId, frameId, url }) => {
-      console.log(tabId, frameId, url, 'tabId, frameId, url');
+      if (!(!url || !url.startsWith('http') || !url.startsWith('https') || !tabId)) {
+        return;
+      }
       console.log(
         '有页面加载 onCommitted',
         dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'),

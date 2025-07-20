@@ -47,11 +47,15 @@ function filterSituation(resp) {
     return false;
   }
 
-  // 检查响应数据是否以{}开头结尾（简单判断JSON对象格式）
+  // 检查响应数据是否是有效的JSON格式（对象{}或数组[]）
   const responseData = resp.responseText || resp.response;
   if (responseData) {
     const trimmedData = responseData.toString().trim();
-    if (!trimmedData.startsWith('{') || !trimmedData.endsWith('}')) {
+    // 支持JSON对象和JSON数组
+    const isJsonObject = trimmedData.startsWith('{') && trimmedData.endsWith('}');
+    const isJsonArray = trimmedData.startsWith('[') && trimmedData.endsWith(']');
+    
+    if (!isJsonObject && !isJsonArray) {
       return false;
     }
   }
@@ -100,7 +104,7 @@ function beginHook() {
     ajaxHooker.hook(async (request: AjaxHookRequest) => {
       while(!window.__HOOK_CFG) {
         await new Promise(resolve => setTimeout(resolve, 10));
-        console.warn('等待配置中ing', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
+        console.log('等待配置中ing', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
       }
       if(!alreadyConfigInit) { 
         const {
@@ -127,9 +131,6 @@ function beginHook() {
       const cacheKey = getCacheKey(request);
       if(mockEnabled){
         const mock = mockList.find((item: any) => {
-          console.log(isPathMatch, 'isPathMatch');
-          console.log(mockList, 'mockList');
-          console.log(request, 'request');
           if(isPathMatch) {
             const apartCurUrl = urlApart(request.url?.startsWith('http') ? request.url : window.location.origin + request.url);
             return `${item.origin}${item.purePath}` === `${apartCurUrl.origin}${apartCurUrl.purePath}` && item.method === request.method;
@@ -143,11 +144,9 @@ function beginHook() {
         }
       }
       request.response = async (resp: AjaxHookResponse) => {
-        console.warn("已进入request.response");
-        console.warn('window.__HOOK_CFG', !!window.__HOOK_CFG);
 
         if (!filterSituation(resp)) {
-          return resp;
+          return;
         }
         ajaxHooker.modifyJsonResponse(
           request,
