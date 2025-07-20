@@ -66,6 +66,7 @@ async function isRegistered() {
 }
 async function injectCfgToPage({
   tabId,
+  frameId,
   url,
 }: {
   tabId: number;
@@ -175,7 +176,7 @@ function wireStorageWatcher() {
 function wireNavigationInjection() {
   chrome.webNavigation.onCommitted.addListener(
     ({ tabId, frameId, url }) => {
-      if (!(!url || !url.startsWith('http') || !url.startsWith('https') || !tabId)) {
+      if (!url || (!url.startsWith('http://') && !url.startsWith('https://')) || !tabId) {
         return;
       }
       console.log(
