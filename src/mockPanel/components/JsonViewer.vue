@@ -10,6 +10,8 @@
       <el-checkbox v-model="showHeaderPanel" label="显示Headers" />
       <el-checkbox v-model="showBodyPanel" label="显示Body参数" />
       <el-checkbox v-model="isPathMatch" label="仅path匹配" />
+      <el-checkbox v-model="mockResponse" label="mock响应" />
+      <el-checkbox v-model="mockRequestBody" label="mock请求体"/>
     </div>
 
     <!-- Query参数面板 -->
@@ -90,7 +92,8 @@ const showQueryPanel = ref(true);
 const showHeaderPanel = ref(true);
 const showBodyPanel = ref(true);
 const isPathMatch = ref(false);
-
+const mockResponse = ref(true);
+const mockRequestBody = ref(false);
 // 面板区域ref
 const jsonViewerAreaRef = ref<HTMLElement | null>(null);
 
@@ -314,16 +317,20 @@ const onPageHide = () => {
     headersPanelVisible: showHeaderPanel.value,
     bodyPanelVisible: showBodyPanel.value,
     isPathMatch: isPathMatch.value,
+    mockResponse: mockResponse.value,
+    mockRequestBody: mockRequestBody.value,
   });
   console.log('执行')
 };
 onMounted(async () => {
-  const { queryPanelVisible, headersPanelVisible, bodyPanelVisible, isPathMatch: isPathMatchInit } = await chromeLocalStorage.get(['queryPanelVisible', 'headersPanelVisible', 'bodyPanelVisible', 'isPathMatch']);
+  const { queryPanelVisible, headersPanelVisible, bodyPanelVisible, isPathMatch: isPathMatchInit, mockResponse: mockResponseInit, mockRequestBody: mockRequestBodyInit } = await chromeLocalStorage.get(['queryPanelVisible', 'headersPanelVisible', 'bodyPanelVisible', 'isPathMatch', 'mockResponse', 'mockRequestBody']);
 
   showQueryPanel.value = queryPanelVisible ?? false;
   showHeaderPanel.value = headersPanelVisible ?? false;
   showBodyPanel.value = bodyPanelVisible ?? false;
   isPathMatch.value = isPathMatchInit ?? false;
+  mockResponse.value = mockResponseInit ?? false;
+  mockRequestBody.value = mockRequestBodyInit ?? false;
   createEditors();
   window.addEventListener('pagehide', onPageHide);
 });

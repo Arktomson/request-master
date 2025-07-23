@@ -47,6 +47,8 @@ async function initConfig() {
     queryPanelVisible: true,
     headersPanelVisible: true,
     bodyPanelVisible: true,
+    mockResponse: true,
+    mockRequestBody: false,
     isPathMatch: false,
     sidebarPosition: 'right',
     sidebarHeight: 600,

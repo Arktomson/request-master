@@ -563,72 +563,72 @@ export const ajaxInterface = function () {
         .then(async (res) => {
           if (typeof request.response === 'function') {
             // 对于错误状态码且是JSON格式的响应，进行特殊处理
-            if (serverTempErrorCodes.includes(res.status)) {
-              // 检查Content-Type是否为JSON
-              const contentType = res.headers.get('content-type');
-              if (contentType && contentType.includes('json')) {
-                try {
-                  // 尝试读取响应体
-                  let responseData = await res.json();
+            // if (serverTempErrorCodes.includes(res.status)) {
+            //   // 检查Content-Type是否为JSON
+            //   const contentType = res.headers.get('content-type');
+            //   if (contentType && contentType.includes('json')) {
+            //     try {
+            //       // 尝试读取响应体
+            //       let responseData = await res.json();
 
-                  // 构建响应对象
-                  const response = {
-                    finalUrl: res.url,
-                    status: res.status,
-                    statusText: res.statusText,
-                    responseHeaders: parseHeaders(res.headers),
-                    json: responseData,
-                    text: JSON.stringify(responseData),
-                    response: JSON.stringify(responseData),
-                    responseText: JSON.stringify(responseData),
-                  };
+            //       // 构建响应对象
+            //       const response = {
+            //         finalUrl: res.url,
+            //         status: res.status,
+            //         statusText: res.statusText,
+            //         responseHeaders: parseHeaders(res.headers),
+            //         json: responseData,
+            //         text: JSON.stringify(responseData),
+            //         response: JSON.stringify(responseData),
+            //         responseText: JSON.stringify(responseData),
+            //       };
 
-                  // 调用 request.response 处理错误响应
-                  const modifiedResponse =
-                    request.response(response) || response;
+            //       // 调用 request.response 处理错误响应
+            //       const modifiedResponse =
+            //         request.response(response) || response;
 
-                  // 创建新的Response对象返回
-                  const mockResponse = new Response(
-                    modifiedResponse.text ||
-                      modifiedResponse.responseText ||
-                      JSON.stringify(modifiedResponse.json),
-                    {
-                      status: modifiedResponse.status || 200,
-                      statusText: modifiedResponse.statusText || 'OK',
-                      headers: new Headers(
-                        modifiedResponse.responseHeaders || {}
-                      ),
-                    }
-                  );
+            //       // 创建新的Response对象返回
+            //       const mockResponse = new Response(
+            //         modifiedResponse.text ||
+            //           modifiedResponse.responseText ||
+            //           JSON.stringify(modifiedResponse.json),
+            //         {
+            //           status: modifiedResponse.status || 200,
+            //           statusText: modifiedResponse.statusText || 'OK',
+            //           headers: new Headers(
+            //             modifiedResponse.responseHeaders || {}
+            //           ),
+            //         }
+            //       );
 
-                  // 为新的Response对象添加方法
-                  fetchResponses.forEach((key) => {
-                    mockResponse[key] = function () {
-                      if (key === 'json') {
-                        return Promise.resolve(
-                          modifiedResponse.json ||
-                            JSON.parse(modifiedResponse.text || '{}')
-                        );
-                      } else if (key === 'text') {
-                        return Promise.resolve(
-                          modifiedResponse.text ||
-                            JSON.stringify(modifiedResponse.json || '')
-                        );
-                      } else {
-                        return Promise.resolve(modifiedResponse[key]);
-                      }
-                    };
-                  });
+            //       // 为新的Response对象添加方法
+            //       fetchResponses.forEach((key) => {
+            //         mockResponse[key] = function () {
+            //           if (key === 'json') {
+            //             return Promise.resolve(
+            //               modifiedResponse.json ||
+            //                 JSON.parse(modifiedResponse.text || '{}')
+            //             );
+            //           } else if (key === 'text') {
+            //             return Promise.resolve(
+            //               modifiedResponse.text ||
+            //                 JSON.stringify(modifiedResponse.json || '')
+            //             );
+            //           } else {
+            //             return Promise.resolve(modifiedResponse[key]);
+            //           }
+            //         };
+            //       });
 
-                  resolve(mockResponse);
-                  return;
-                } catch (error) {
-                  console.error('读取错误响应失败:', error);
-                }
-              } else {
+            //       resolve(mockResponse);
+            //       return;
+            //     } catch (error) {
+            //       console.error('读取错误响应失败:', error);
+            //     }
+            //   } else {
                 
-              }
-            }
+            //   }
+            // }
 
             // 对于正常状态码或非JSON的错误状态码，使用原有逻辑
             const response = {

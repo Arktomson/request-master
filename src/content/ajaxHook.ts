@@ -71,34 +71,13 @@ function beginHook() {
   let disasterRecoveryProcessing = false;
   let urlMatch = false;
   let isPathMatch = false;
+  let mockResponse = true;
+  let mockRequestBody = false;
 
 
   console.log('启动ajaxHook', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
   console.log('monitorEnabled', monitorEnabled);
-  console.log(window.__HOOK_CFG, 'window.__HOOK_CFG');
-  if (window.__HOOK_CFG) {
-    const {
-      monitorEnabled: monitorEnabledInit,
-      disasterRecoveryProcessing: disasterRecoveryProcessingInit,
-      mockList: mockListInit = [],
-      mockEnabled: mockEnabledInit,
-      urlMatch: urlMatchInit,
-      isPathMatch: isPathMatchInit,
-    } = window.__HOOK_CFG;
-    monitorEnabled = monitorEnabledInit;
-    disasterRecoveryProcessing = disasterRecoveryProcessingInit;
-    mockList = mockListInit;
-    mockEnabled = mockEnabledInit;
-    urlMatch = urlMatchInit;
-    isPathMatch = isPathMatchInit;
-    alreadyConfigInit = true;
-  }
-  console.log(
-    monitorEnabled,
-    urlMatch,
-    disasterRecoveryProcessing,
-    'monitorEnabled, urlMatch, disasterRecoveryProcessing'
-  );
+ 
   if (monitorEnabled || (urlMatch && disasterRecoveryProcessing)) {
     const ajaxHooker = ajaxInterface();
     ajaxHooker.hook(async (request: AjaxHookRequest) => {
@@ -114,6 +93,8 @@ function beginHook() {
           mockEnabled: mockEnabledInit,
           urlMatch: urlMatchInit,
           isPathMatch: isPathMatchInit,
+          mockResponse: mockResponseInit,
+          mockRequestBody: mockRequestBodyInit,
         } = window.__HOOK_CFG;
         monitorEnabled = monitorEnabledInit;
         disasterRecoveryProcessing = disasterRecoveryProcessingInit;
@@ -121,6 +102,8 @@ function beginHook() {
         mockEnabled = mockEnabledInit;
         urlMatch = urlMatchInit;
         isPathMatch = isPathMatchInit;
+        mockResponse = mockResponseInit;
+        mockRequestBody = mockRequestBodyInit;
         alreadyConfigInit = true;
       }
       console.log(
@@ -130,7 +113,7 @@ function beginHook() {
       );
       const cacheKey = getCacheKey(request);
       if(mockEnabled){
-        const mock = mockList.find((item: any) => {
+        const isFindMock = mockList.find((item: any) => {
           if(isPathMatch) {
             const apartCurUrl = urlApart(request.url?.startsWith('http') ? request.url : window.location.origin + request.url);
             return `${item.origin}${item.purePath}` === `${apartCurUrl.origin}${apartCurUrl.purePath}` && item.method === request.method;
@@ -138,9 +121,14 @@ function beginHook() {
             return item.cacheKey === cacheKey;
           }
         });
-        if (mock) {
-          request.data = mock.params;
-          request.headers = mock.headers;
+        if (isFindMock) {
+          if(mockResponse) {
+            request.data = isFindMock.params;
+            // request.headers = mock.headers;
+          }
+          if(mockRequestBody) {
+            request.data = isFindMock.params;
+          }
         }
       }
       request.response = async (resp: AjaxHookResponse) => {
@@ -158,7 +146,7 @@ function beginHook() {
               let mockData = json;
               if (mockEnabled) {
                 // 🚀 性能优化：使用Map查找，时间复杂度从O(n)降到O(1)
-                const mock = mockList.find((item: any) => {
+                const isFindMock = mockList.find((item: any) => {
                   if(isPathMatch) {
                     const apartCurUrl = urlApart(request.url?.startsWith('http') ? request.url : window.location.origin + request.url);
                     return `${item.origin}${item.purePath}` === `${apartCurUrl.origin}${apartCurUrl.purePath}` && item.method === request.method;
@@ -166,9 +154,9 @@ function beginHook() {
                     return item.cacheKey === cacheKey;
                   }
                 });
-                if (mock) {
-                  json = mock.response;
-                  mockData = mock.response;
+                if (isFindMock && mockResponse) {
+                  json = isFindMock.response;
+                  mockData = isFindMock.response;
                   resp.status = 200;
                   resp.statusText = 'OK';
                   isMock = true;
