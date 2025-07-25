@@ -1,0 +1,119 @@
+name: 发布到Chrome Web Store
+
+# 当版本发布工作流成功完成后自动触发
+on:
+  workflow_run:
+    workflows: ["版本发布"]
+    types:
+      - completed
+    branches:
+      - main
+
+# 设置时区
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # 只有当版本发布工作流成功时才运行
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      # 检出代码
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 获取完整的git历史，以便访问最新的tag
+          fetch-depth: 0
+
+      # 设置Node.js环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 安装依赖
+      - name: Install dependencies
+        run: npm ci
+
+      # 构建扩展
+      - name: Build extension
+        run: npm run build
+
+      # 获取最新版本号（从最新的git tag中提取）
+      - name: Get latest version from tag
+        id: version
+        run: |
+          # 获取最新的tag
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          # 去掉v前缀获取版本号
+          VERSION=${LATEST_TAG#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Latest tag: $LATEST_TAG"
+          echo "Version: $VERSION"
+
+      # 更新manifest.json中的版本号
+      - name: Update manifest version
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          # 使用jq更新manifest.json中的版本号
+          jq --arg version "$VERSION" '.version = $version' dist/manifest.json > tmp.json && mv tmp.json dist/manifest.json
+          echo "Updated manifest.json version to: $VERSION"
+
+      # 创建扩展zip包
+      - name: Create extension zip
+        run: |
+          cd dist
+          zip -r ../extension.zip .
+          cd ..
+          echo "Extension package created: extension.zip"
+
+      # 发布到Chrome Web Store
+      - name: Publish to Chrome Web Store
+        uses: PlasmoHQ/bpp@v3
+        with:
+          keys: ${{ secrets.BPP_KEYS }}
+          dry-run: false
+
+      # 可选：上传构建产物作为Release资产
+      - name: Upload extension to release
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-extension-${{ steps.version.outputs.version }}
+          path: extension.zip
+
+      # 创建GitHub Release（可选）
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## 🚀 Request Master v${{ steps.version.outputs.version }}
+            
+            ### 📦 下载
+            - [Chrome扩展包](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/extension.zip)
+            
+            ### 🔗 安装方式
+            1. 从Chrome Web Store安装（推荐）
+            2. 下载扩展包手动安装
+            
+            ### 📋 更新内容
+            详见提交记录。
+          draft: false
+          prerelease: false
+
+      # 上传扩展包到Release
+      - name: Upload extension to GitHub Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./extension.zip
+          asset_name: extension.zip
+          asset_content_type: application/zip

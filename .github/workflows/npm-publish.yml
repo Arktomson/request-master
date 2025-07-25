@@ -1,4 +1,4 @@
-name: NPM发布
+name: "版本发布"
 
 on:
   workflow_dispatch:
