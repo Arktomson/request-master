@@ -2,6 +2,7 @@
 dist
 dist-prod
 dist-ssr
+cache
 
 # 依赖
 node_modules
