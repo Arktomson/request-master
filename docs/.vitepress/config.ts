@@ -5,6 +5,7 @@ export default defineConfig({
   title: "Request Master",
   description: "Chrome扩展 - Ajax请求拦截与Mock工具",
   lang: 'zh-CN',
+  base: '/request-master/',
   
   head: [
     ['link', { rel: 'icon', href: '/logo.svg', type: 'image/svg+xml' }]
