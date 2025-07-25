@@ -224,12 +224,12 @@ disasterRecoveryProcessing: true | false
 }
 ```
 
-支持的动态变量：
+<!-- 支持的动态变量：
 - `{{url.参数名}}`：URL路径参数
 - `{{query.参数名}}`：查询字符串参数
 - `{{body.字段名}}`：请求体字段
 - `{{now}}`：当前时间戳
-- `{{uuid}}`：随机UUID
+- `{{uuid}}`：随机UUID -->
 
 #### 条件响应
 
