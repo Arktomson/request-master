@@ -104,7 +104,7 @@ Request Master 提供了类似Chrome DevTools的侧边栏体验：
 现在您已经掌握了基本用法，可以继续学习：
 
 - [安装配置](/guide/installation) - 详细的安装和配置说明
-- [功能特性](/guide/features) - 了解所有可用功能
+- [基本配置](/guide/configuration) - 了解所有可用功能
 - [API文档](/api/ajax-hook) - 深入了解技术细节
 - [使用示例](/examples/usage-examples) - 更多实际使用场景
 
@@ -128,4 +128,4 @@ A: 尝试：
 2. 重启Chrome浏览器
 3. 检查扩展是否为最新版本
 
-如果您遇到其他问题，请查看[常见问题](/examples/faq)或提交Issue。
+如果您遇到其他问题，请参考上面的常见问题部分或提交Issue。
