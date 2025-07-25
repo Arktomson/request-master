@@ -223,17 +223,11 @@ function beginHook() {
     });
 
     window.addEventListener('content_to_ajaxHook', (event) => {
-      const { detail: { type, action, message } = {} } = event || {};
-      if (type === 'mockList_change') {
-        mockList = message;
-      } else if (type === 'mockEnabled_change') {
-        mockEnabled = message;
-        console.log('mockEnabled_change ajaxHook', message);
-      } else if (type === 'monitorEnabled_change') {
-        console.log('monitorEnabled_change ajaxHook', message);
-        monitorEnabled = message;
-      } else if (type === 'disasterRecoveryProcessing_change') {
-        disasterRecoveryProcessing = message;
+      const { detail: { type, message } = {} } = event || {};
+      
+      if (type?.endsWith('_change')) {
+        const variableName = type.replace('_change', '');
+        eval(`${variableName} = message`);
       }
     });
   }

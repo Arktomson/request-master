@@ -121,26 +121,13 @@ console.log('content执行', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
               pendingBatchProcessData = [];
             }
           );
-        } else if (message.type === 'mockList_change') {
-          // 将最新的 mockList 转发给 ajaxHook 脚本
+        } else if (message.type.endsWith('_change')) {
+          // 动态处理各种配置变更
+          const messageData = message.type === 'mockList_change' ? (message.data || []) : message.data;
+          
           customEventSend('content_to_ajaxHook', {
-            type: 'mockList_change',
-            message: message.data || [],
-          });
-        } else if (message.type === 'mockEnabled_change') {
-          customEventSend('content_to_ajaxHook', {
-            type: 'mockEnabled_change',
-            message: message.data,
-          });
-        } else if (message.type === 'monitorEnabled_change') {
-          customEventSend('content_to_ajaxHook', {
-            type: 'monitorEnabled_change',
-            message: message.data,
-          });
-        } else if (message.type === 'disasterRecoveryProcessing_change') {
-          customEventSend('content_to_ajaxHook', {
-            type: 'disasterRecoveryProcessing_change',
-            message: message.data,
+            type: message.type,
+            message: messageData,
           });
         } else if (message.type === 'copy_json') {
           navigator.clipboard.writeText(message.data);
