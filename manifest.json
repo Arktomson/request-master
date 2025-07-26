@@ -51,11 +51,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "src/assets/*",
         "src/content/ajaxHook.js",
-        "src/mockPanel/index.html",
-        "static/css/*",
-        "static/js/*"
+        "src/mockPanel/index.html"
       ],
       "matches": ["http://*/*", "https://*/*"]
     }

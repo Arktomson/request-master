@@ -127,8 +127,9 @@ import {
   chromeSessionStorage,
   messageToContent,
 } from '@/utils/index';
-import { ref, onMounted, nextTick, toRaw, watch } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, toRaw, watch } from 'vue';
 import { ElMessage, ElSwitch, ElTooltip } from 'element-plus';
+import { gsap } from 'gsap';
 
 const isDisasterRecoveryProcessing = ref(false);
 const isMonitorEnabled = ref(false);
@@ -138,17 +139,122 @@ const editingIndex = ref<number | null>(null);
 const editingContent = ref<string>('');
 const jsonError = ref<string | null>(null);
 
-// 切换展开状态
+// GSAP Timeline for entrance animation
+let entranceTl: gsap.core.Timeline;
+
+// 入场动画
+const initEntranceAnimation = () => {
+  entranceTl = gsap.timeline();
+  
+  // 设置初始状态
+  gsap.set('.popup-container', { opacity: 0, y: -20 });
+  gsap.set('.cache-item', { opacity: 0, x: -20 });
+  
+  // 执行入场动画
+  entranceTl
+    .to('.popup-container', {
+      opacity: 1,
+      y: 0,
+      duration: 0.3,
+      ease: 'power2.out'
+    })
+    .to('.cache-item', {
+      opacity: 1,
+      x: 0,
+      duration: 0.2,
+      stagger: 0.05,
+      ease: 'power2.out'
+    }, '-=0.1');
+};
+
+// 切换展开状态 - 添加动画
 const toggleItem = (index: number) => {
   // 如果正在编辑，不允许折叠
   if (editingIndex.value === index) return;
 
   const position = expandedItems.value.indexOf(index);
+  const cacheContent = document.querySelector(`.cache-item:nth-child(${index + 1}) .cache-content`);
+  
   if (position > -1) {
-    expandedItems.value.splice(position, 1);
+    // 折叠动画
+    if (cacheContent) {
+      gsap.to(cacheContent, {
+        height: 0,
+        opacity: 0,
+        duration: 0.3,
+        ease: 'power2.out',
+        onComplete: () => {
+          expandedItems.value.splice(position, 1);
+        }
+      });
+    } else {
+      expandedItems.value.splice(position, 1);
+    }
   } else {
+    // 展开动画
     expandedItems.value.push(index);
+    nextTick(() => {
+      const newCacheContent = document.querySelector(`.cache-item:nth-child(${index + 1}) .cache-content`);
+      if (newCacheContent) {
+        gsap.fromTo(newCacheContent, 
+          { height: 0, opacity: 0 },
+          { 
+            height: 'auto', 
+            opacity: 1, 
+            duration: 0.3, 
+            ease: 'power2.out' 
+          }
+        );
+      }
+    });
   }
+};
+
+// 按钮悬停效果
+const setupButtonAnimations = () => {
+  // 为所有按钮添加悬停动画
+  const buttons = document.querySelectorAll('.format-btn, .save-btn, .edit-btn');
+  
+  buttons.forEach(button => {
+    const handleMouseEnter = () => {
+      gsap.to(button, {
+        scale: 1.05,
+        duration: 0.2,
+        ease: 'power2.out'
+      });
+    };
+    
+    const handleMouseLeave = () => {
+      gsap.to(button, {
+        scale: 1,
+        duration: 0.2,
+        ease: 'power2.out'
+      });
+    };
+    
+    button.addEventListener('mouseenter', handleMouseEnter);
+    button.addEventListener('mouseleave', handleMouseLeave);
+  });
+};
+
+// 开关动画效果
+const enhanceSwitchAnimations = () => {
+  const switches = document.querySelectorAll('.el-switch');
+  
+  switches.forEach(switchEl => {
+    const handleClick = () => {
+      gsap.fromTo(switchEl, 
+        { scale: 0.95 },
+        { 
+          scale: 1, 
+          duration: 0.1, 
+          ease: 'power2.out' 
+        }
+      );
+    };
+    
+    switchEl.addEventListener('click', handleClick);
+  });
 };
 
 watch(isDisasterRecoveryProcessing, (newVal) => {
@@ -326,8 +432,25 @@ onMounted(async () => {
   chromeSessionStorage.onChange((changes: any) => {
     if (changes.curCacheData && changes.curCacheData.newValue) {
       curCacheData.value = changes.curCacheData.newValue;
+      // 重新设置按钮动画
+      nextTick(() => {
+        setupButtonAnimations();
+      });
     }
   }, 'curCacheData');
+
+  // 初始化动画
+  nextTick(() => {
+    initEntranceAnimation();
+    setupButtonAnimations();
+    enhanceSwitchAnimations();
+  });
+});
+
+onUnmounted(() => {
+  // 清理GSAP动画
+  if (entranceTl) entranceTl.kill();
+  gsap.killTweensOf('.popup-container, .cache-item, .format-btn, .save-btn, .edit-btn, .el-switch');
 });
 </script>
 
@@ -423,7 +546,7 @@ onMounted(async () => {
     border-radius: 4px;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s;
+    // 移除transition，改用GSAP动画
 
     &.active {
       background-color: #10b981;
@@ -598,7 +721,7 @@ onMounted(async () => {
     padding: 4px 8px;
     font-size: 12px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    // 移除transition，改用GSAP动画
 
     &:hover {
       background-color: #374151;
@@ -656,7 +779,7 @@ onMounted(async () => {
     padding: 4px 8px;
     font-size: 12px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    // 移除transition，改用GSAP动画
 
     &:hover {
       background-color: #4f46e5;
@@ -671,7 +794,7 @@ onMounted(async () => {
     padding: 4px 8px;
     font-size: 12px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    // 移除transition，改用GSAP动画
 
     &:hover:not(:disabled) {
       background-color: #059669;

@@ -132,4 +132,3 @@ export function getMethodType(method: string): any {
   };
   return methodMap[methodLower] || 'info';
 }
-export { default as RequestCacheDB } from './requestDB';
