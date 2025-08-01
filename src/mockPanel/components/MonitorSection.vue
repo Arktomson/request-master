@@ -220,6 +220,7 @@ defineExpose({
         &::before {
           content: 'MOCK';
           position: absolute;
+          pointer-events: none;
           top: 2px;
           right: 4px;
           background-color: #67c23a;

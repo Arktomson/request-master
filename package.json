@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "rsbuild dev",
+    "dev-one": "NODE_ENV=development rsbuild build",
     "build": "rsbuild build",
     "preview": "rsbuild preview",
     "docs:dev": "vitepress dev docs",

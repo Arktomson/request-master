@@ -47,7 +47,7 @@ import {
   watch,
 } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { chromeLocalStorage, urlApart, messageToContent, generateCacheKey, generateCacheKeyFromQueryString } from '@/utils';
+import { chromeLocalStorage, urlApart, messageToContent, generateCacheKey } from '@/utils';
 // 导入组件
 import Header from './components/Header.vue';
 import SidebarMenu from './components/SidebarMenu.vue';
@@ -247,69 +247,41 @@ const deleteRequest = (index: number) => {
 // 处理响应体保存
 const handleSaveResponse = async (parseContent: any) => {
   // 只处理Mock的响应保存
-  selectedMock.value.response = parseContent;
-  chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
-  ElMessage.success('修改已保存!');
+  const mockIndex = selectedMockIndex.value;
+  if (mockIndex >= 0 && mockIndex < mockList.value.length) {
+    mockList.value[mockIndex].response = parseContent;
+    chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
+    ElMessage.success('修改已保存!');
+  }
 };
 
 // 处理Query参数保存
-const handleSaveQuery = async (content: string) => {
-  // 只处理Mock的Query保存
-  // if (currentSelectedType.value === 'mock' && selectedMock.value) {
-  //   const { cacheKey } = selectedMock.value;
-  //   const curMockList = (await chromeLocalStorage.get('mockList')) || [];
-
-  //   curMockList.forEach((item: any) => {
-  //     if (item.cacheKey === cacheKey) {
-  //       // 如果是URL search格式，直接保存
-  //       if (content.startsWith('?')) {
-  //         item.query = content;
-  //       } 
-  //     }
-  //   });
-
-  //   mockList.value[selectedMockIndex.value] = {
-  //     ...curMockList.find((item: any) => item.cacheKey === cacheKey),
-  //   };
-  //   chromeLocalStorage.set({ mockList: curMockList });
-  // }
+const handleSaveQuery = async (_content: string) => {
+  // 功能暂未实现
 };
 
 // 处理Headers保存
-const handleSaveHeaders = async (content: string) => {
-  // 只处理Mock的Headers保存
-  // if (currentSelectedType.value === 'mock' && selectedMock.value) {
-  //   const { cacheKey } = selectedMock.value;
-  //   const curMockList = (await chromeLocalStorage.get('mockList')) || [];
-
-  //   curMockList.forEach((item: any) => {
-  //     if (item.cacheKey === cacheKey) {
-  //       try {
-  //         const parseContent = JSON.parse(content);
-  //         item.headers = parseContent;
-  //       } catch (e) {
-  //         // 解析失败时保存原始内容
-  //         item.headers = content;
-  //       }
-  //     }
-  //   });
-
-  //   mockList.value[selectedMockIndex.value] = {
-  //     ...curMockList.find((item: any) => item.cacheKey === cacheKey),
-  //   };
-  //   chromeLocalStorage.set({ mockList: curMockList });
-  // }
+const handleSaveHeaders = async (_content: string) => {
+  // 功能暂未实现
 };
 
 const handleSaveBody = async (body: string) => {
-  selectedMock.value.params = body;
-  selectedMock.value.cacheKey = generateCacheKey(selectedMock.value.url, JSON.parse(body), selectedMock.value.method);
-  chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
-  ElMessage.success('修改已保存!');
-  // 只处理Mock的Body保存
-  // selectedMock.value.params = content;
-  // chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
-  // ElMessage.success('修改已保存!');
+  const mockItem = selectedMock.value;
+  if (mockItem) {
+    try {
+      const parsedBody = JSON.parse(body);
+      mockItem.params = parsedBody;
+      mockItem.cacheKey = generateCacheKey(
+        mockItem.url, 
+        parsedBody, 
+        mockItem.method
+      );
+      chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
+      ElMessage.success('修改已保存!');
+    } catch (error) {
+      ElMessage.error('JSON格式错误，请检查参数格式');
+    }
+  }
 };
 
 // 拖拽调整大小处理
