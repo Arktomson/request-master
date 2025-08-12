@@ -218,4 +218,11 @@ wireRuntimeMessaging();
 wireStorageWatcher();
 wireNavigationInjection();
 
+
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  if (message.type === 'reload') {
+    await chrome.runtime.reload();
+    sendResponse({ success: true });
+  }
+});
 console.debug('background执行');

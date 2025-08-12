@@ -2,7 +2,7 @@ import { chromeSessionStorage, customEventSend } from '@/utils';
 import dayjs from 'dayjs';
 
 // 立即执行函数，用于防止重复执行
-console.log('content执行', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
+console.log('content123456789012', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
 (function () {
   // 优化：缓存存储数据，避免重复调用
   let pendingBatchProcessData: any = [];
@@ -140,3 +140,5 @@ console.log('content执行', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
   // 优化：直接启动，无需额外的main函数包装
   injectScriptToPage();
 })(); // 关闭立即执行函数
+
+

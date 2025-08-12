@@ -16,7 +16,8 @@
     "scripting",
     "sidePanel",
     "clipboardWrite",
-    "contextMenus"
+    "contextMenus",
+    "alarms"
   ],
   "homepage_url": "https://github.com/Arktomson/request-master",
   "host_permissions": ["http://*/*", "https://*/*"],

@@ -45,12 +45,8 @@ const onMouseEnter = () => {
     ease: 'power2.out'
   });
   
-  // 为伪元素添加微妙的缩放效果
-  gsap.to(`${handleRef.value.className.includes('horizontal') ? '.horizontal' : '.resize-handle:not(.horizontal)'}::after`, {
-    scale: 1.1,
-    duration: 0.2,
-    ease: 'power2.out'
-  });
+  // 添加类来触发CSS过渡效果
+  handleRef.value.classList.add('hover-active');
 };
 
 const onMouseLeave = () => {
@@ -66,12 +62,8 @@ const onMouseLeave = () => {
     ease: 'power2.out'
   });
   
-  // 恢复伪元素缩放
-  gsap.to(`${handleRef.value.className.includes('horizontal') ? '.horizontal' : '.resize-handle:not(.horizontal)'}::after`, {
-    scale: 1,
-    duration: 0.2,
-    ease: 'power2.out'
-  });
+  // 移除悬停类
+  handleRef.value.classList.remove('hover-active');
 };
 
 const setActiveState = (active: boolean) => {
@@ -86,13 +78,18 @@ const setActiveState = (active: boolean) => {
       duration: 0.1,
       ease: 'power2.out'
     });
-  } else if (!handleRef.value.matches(':hover')) {
-    // 非激活且非悬停状态
-    gsap.to(handleRef.value, {
-      backgroundColor: '#f2f2f2',
-      duration: 0.3,
-      ease: 'power2.out'
-    });
+    handleRef.value.classList.add('drag-active');
+  } else {
+    handleRef.value.classList.remove('drag-active');
+    if (!handleRef.value.matches(':hover')) {
+      // 非激活且非悬停状态
+      gsap.to(handleRef.value, {
+        backgroundColor: '#f2f2f2',
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+      handleRef.value.classList.remove('hover-active');
+    }
   }
 };
 
@@ -185,6 +182,12 @@ defineExpose({
       border-radius: 1px;
       transition: transform 0.2s ease; // 保留伪元素的transform动画
     }
+    
+    // 悬停状态的伪元素效果
+    &.hover-active::after,
+    &.drag-active::after {
+      transform: translate(-50%, -50%) scale(1.1);
+    }
   }
   
   &.horizontal {
@@ -203,6 +206,12 @@ defineExpose({
       background-color: #c0c0c0;
       border-radius: 1px;
       transition: transform 0.2s ease; // 保留伪元素的transform动画
+    }
+    
+    // 悬停状态的伪元素效果
+    &.hover-active::after,
+    &.drag-active::after {
+      transform: translate(-50%, -50%) scale(1.1);
     }
   }
 }

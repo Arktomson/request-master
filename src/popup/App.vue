@@ -146,25 +146,39 @@ let entranceTl: gsap.core.Timeline;
 const initEntranceAnimation = () => {
   entranceTl = gsap.timeline();
   
-  // 设置初始状态
-  gsap.set('.popup-container', { opacity: 0, y: -20 });
-  gsap.set('.cache-item', { opacity: 0, x: -20 });
-  
-  // 执行入场动画
-  entranceTl
-    .to('.popup-container', {
-      opacity: 1,
-      y: 0,
-      duration: 0.3,
-      ease: 'power2.out'
-    })
-    .to('.cache-item', {
-      opacity: 1,
-      x: 0,
-      duration: 0.2,
-      stagger: 0.05,
-      ease: 'power2.out'
-    }, '-=0.1');
+  // 设置初始状态 - 等待DOM完全渲染
+  nextTick(() => {
+    const container = document.querySelector('.popup-container');
+    const cacheItems = document.querySelectorAll('.cache-item');
+    
+    if (container) {
+      gsap.set(container, { opacity: 0, y: -20 });
+    }
+    
+    if (cacheItems.length > 0) {
+      gsap.set(cacheItems, { opacity: 0, x: -20 });
+    }
+    
+    // 执行入场动画
+    if (container) {
+      entranceTl.to(container, {
+        opacity: 1,
+        y: 0,
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+    }
+    
+    if (cacheItems.length > 0) {
+      entranceTl.to(cacheItems, {
+        opacity: 1,
+        x: 0,
+        duration: 0.2,
+        stagger: 0.05,
+        ease: 'power2.out'
+      }, '-=0.1');
+    }
+  });
 };
 
 // 切换展开状态 - 添加动画
@@ -212,48 +226,66 @@ const toggleItem = (index: number) => {
 
 // 按钮悬停效果
 const setupButtonAnimations = () => {
-  // 为所有按钮添加悬停动画
-  const buttons = document.querySelectorAll('.format-btn, .save-btn, .edit-btn');
-  
-  buttons.forEach(button => {
-    const handleMouseEnter = () => {
-      gsap.to(button, {
-        scale: 1.05,
-        duration: 0.2,
-        ease: 'power2.out'
-      });
-    };
+  // 等待DOM渲染完成
+  nextTick(() => {
+    // 为所有按钮添加悬停动画
+    const buttons = document.querySelectorAll('.format-btn, .save-btn, .edit-btn');
     
-    const handleMouseLeave = () => {
-      gsap.to(button, {
-        scale: 1,
-        duration: 0.2,
-        ease: 'power2.out'
-      });
-    };
-    
-    button.addEventListener('mouseenter', handleMouseEnter);
-    button.addEventListener('mouseleave', handleMouseLeave);
+    buttons.forEach(button => {
+      // 移除之前的事件监听器（如果有）
+      button.removeEventListener('mouseenter', button.handleMouseEnter);
+      button.removeEventListener('mouseleave', button.handleMouseLeave);
+      
+      const handleMouseEnter = () => {
+        gsap.to(button, {
+          scale: 1.05,
+          duration: 0.2,
+          ease: 'power2.out'
+        });
+      };
+      
+      const handleMouseLeave = () => {
+        gsap.to(button, {
+          scale: 1,
+          duration: 0.2,
+          ease: 'power2.out'
+        });
+      };
+      
+      // 存储引用以便后续移除
+      button.handleMouseEnter = handleMouseEnter;
+      button.handleMouseLeave = handleMouseLeave;
+      
+      button.addEventListener('mouseenter', handleMouseEnter);
+      button.addEventListener('mouseleave', handleMouseLeave);
+    });
   });
 };
 
 // 开关动画效果
 const enhanceSwitchAnimations = () => {
-  const switches = document.querySelectorAll('.el-switch');
-  
-  switches.forEach(switchEl => {
-    const handleClick = () => {
-      gsap.fromTo(switchEl, 
-        { scale: 0.95 },
-        { 
-          scale: 1, 
-          duration: 0.1, 
-          ease: 'power2.out' 
-        }
-      );
-    };
+  nextTick(() => {
+    const switches = document.querySelectorAll('.el-switch');
     
-    switchEl.addEventListener('click', handleClick);
+    switches.forEach(switchEl => {
+      // 移除之前的事件监听器（如果有）
+      switchEl.removeEventListener('click', switchEl.handleClick);
+      
+      const handleClick = () => {
+        gsap.fromTo(switchEl, 
+          { scale: 0.95 },
+          { 
+            scale: 1, 
+            duration: 0.1, 
+            ease: 'power2.out' 
+          }
+        );
+      };
+      
+      // 存储引用以便后续移除
+      switchEl.handleClick = handleClick;
+      switchEl.addEventListener('click', handleClick);
+    });
   });
 };
 
@@ -450,7 +482,27 @@ onMounted(async () => {
 onUnmounted(() => {
   // 清理GSAP动画
   if (entranceTl) entranceTl.kill();
+  
+  // 清理所有GSAP动画
   gsap.killTweensOf('.popup-container, .cache-item, .format-btn, .save-btn, .edit-btn, .el-switch');
+  
+  // 清理事件监听器
+  const buttons = document.querySelectorAll('.format-btn, .save-btn, .edit-btn');
+  buttons.forEach(button => {
+    if (button.handleMouseEnter) {
+      button.removeEventListener('mouseenter', button.handleMouseEnter);
+    }
+    if (button.handleMouseLeave) {
+      button.removeEventListener('mouseleave', button.handleMouseLeave);
+    }
+  });
+  
+  const switches = document.querySelectorAll('.el-switch');
+  switches.forEach(switchEl => {
+    if (switchEl.handleClick) {
+      switchEl.removeEventListener('click', switchEl.handleClick);
+    }
+  });
 });
 </script>
 

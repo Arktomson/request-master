@@ -498,7 +498,7 @@ const emit = defineEmits<{
   .panel-controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 0px 16px;
     padding: 8px 12px;
     background-color: #f5f7fa;
     border-bottom: 1px solid #ebeef5;
