@@ -123,6 +123,7 @@ export default defineConfig(({ env, envMode, command }) => {
       entry: {
         // 主应用入口 - mockPanel
         'src/mockPanel/index': resolve(__dirname, 'src/mockPanel/index.ts'),
+        'src/sider/index': resolve(__dirname, 'src/sider/index.ts'),
         // popup 入口 - 修改为 index 以匹配 manifest.json
         'src/popup/index': resolve(__dirname, 'src/popup/index.ts'),
         // options 入口 - 修改为 index 以匹配 manifest.json
@@ -186,6 +187,7 @@ export default defineConfig(({ env, envMode, command }) => {
         // 为不同入口指定不同的 HTML 模板
         const templateMap: Record<string, string> = {
           'src/mockPanel/index': './src/mockPanel/index.html',
+          'src/sider/index': './src/sider/index.html',
           'src/popup/index': './src/popup/index.html',
           'src/options/index': './src/options/index.html',
         };

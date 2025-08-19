@@ -1,4 +1,4 @@
-c<template>
+<template>
   <div class="sidebar-header">
     <div class="sidebar-title">Mock工具</div>
     <div class="sidebar-header-right">

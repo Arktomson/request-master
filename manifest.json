@@ -53,7 +53,8 @@
     {
       "resources": [
         "src/content/ajaxHook.js",
-        "src/mockPanel/index.html"
+        "src/mockPanel/index.html",
+        "src/sider/index.html"
       ],
       "matches": ["http://*/*", "https://*/*"]
     }
