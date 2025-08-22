@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "request-master",
+  "version": "0.0.1",
+  "description": "request master",
+  "permissions": [
+    "storage",
+    "tabs",
+    "webRequest",
+    "webNavigation",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "declarativeNetRequestFeedback",
+    "proxy",
+    "debugger",
+    "scripting",
+    "sidePanel",
+    "clipboardWrite",
+    "contextMenus",
+    "alarms"
+  ],
+  "homepage_url": "https://github.com/Arktomson/request-master",
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "src/background/index.js"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "src/assets/icon16.png",
+      "48": "src/assets/icon48.png",
+      "128": "src/assets/icon128.png"
+    },
+    "default_title": "request-master"
+  },
+  "options_page": "src/options/index.html",
+
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["src/content/index.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["src/content/iframeSidebar.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/content/ajaxHook.js",
+        "src/mockPanel/index.html",
+        "src/sider/index.html"
+      ],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ],
+  "icons": {
+    "16": "src/assets/icon16.png",
+    "48": "src/assets/icon48.png",
+    "128": "src/assets/icon128.png"
+  },
+  "commands": {
+    "open_sidebar": {
+      "suggested_key": {
+        "default": "Ctrl+H",
+        "mac": "Ctrl+H",
+        "windows": "Ctrl+Shift+H"
+      },
+      "description": "打开 / 切换扩展侧栏"
+    }
+  }
+}
