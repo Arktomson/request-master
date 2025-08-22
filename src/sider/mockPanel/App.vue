@@ -283,28 +283,28 @@ const handleSaveBody = async (body: string) => {
 
 // 拖拽调整大小处理
 const handleVerticalResize = (size: number) => {
-  if (jsonViewerRef.value?.jsonViewerAreaRef) {
-    const container = document.querySelector('.main-layout') as HTMLElement;
-    if (!container) return;
+  const container = document.querySelector('.main-layout') as HTMLElement;
+  if (!container) return;
 
-    const containerWidth = container.getBoundingClientRect().width;
-    const contentArea = document.querySelector('.content-area') as HTMLElement;
-    if (!contentArea) return;
+  const containerWidth = container.getBoundingClientRect().width;
+  const contentArea = document.querySelector('.content-area') as HTMLElement;
+  const jsonViewerArea = document.querySelector('.json-viewer-area') as HTMLElement;
+  
+  if (!contentArea || !jsonViewerArea) return;
 
-    // 确保调整后的宽度不超出合理范围
-    const minWidth = 300;
-    const maxWidth = containerWidth * 0.75; // 最大不超过容器的75%
-    const newSize = Math.max(minWidth, Math.min(maxWidth, size));
+  // 确保调整后的宽度不超出合理范围
+  const minWidth = 300;
+  const maxWidth = containerWidth * 0.65; // 最大不超过容器的65%
+  const newSize = Math.max(minWidth, Math.min(maxWidth, size));
 
-    // 计算内容区和JSON查看器的相对宽度
-    const contentAreaWidth = containerWidth - newSize - 87; // 减去菜单宽度和分隔线宽度
+  // 计算内容区宽度（减去ResizeHandle的4px宽度）
+  const contentAreaWidth = containerWidth - newSize - 4;
 
-    // 应用新宽度
-    contentArea.style.width = `${contentAreaWidth}px`;
-    contentArea.style.flex = '0 0 auto';
-    jsonViewerRef.value.jsonViewerAreaRef.style.width = `${newSize}px`;
-    jsonViewerRef.value.jsonViewerAreaRef.style.flex = '0 0 auto';
-  }
+  // 直接设置宽度，不使用flex
+  contentArea.style.width = `${contentAreaWidth}px`;
+  contentArea.style.flexShrink = '0';
+  jsonViewerArea.style.width = `${newSize}px`;
+  jsonViewerArea.style.flexShrink = '0';
 };
 
 const handleHorizontalResize = (size: number) => {
@@ -464,16 +464,14 @@ onMounted(async () => {
     .content-area {
       flex: 1;
       min-width: 300px;
-      max-width: 70%;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      border-right: 1px solid #ebeef5;
+      background: #ffffff;
       
       // 底部布局时改为水平排列
       &.bottom-layout {
         flex-direction: row;
-        max-width: none;
         
         // 在底部布局时，MonitorSection 和 MockSection 水平排列
         :deep(.monitor-section) {
@@ -507,21 +505,60 @@ onMounted(async () => {
         }
       }
     }
+
+    // ResizeHandle 样式
+    > .resize-handle {
+      flex-shrink: 0;
+      width: 4px;
+      background: #f0f0f0;
+      cursor: col-resize;
+      border-left: 1px solid #e0e0e0;
+      border-right: 1px solid #e0e0e0;
+      
+      &:hover {
+        background: #e0e0e0;
+      }
+    }
+
+    // JsonViewer 样式 - 关键修复
+    > .json-viewer-area {
+      flex: 0 1 auto; // 允许收缩，根据内容调整
+      width: 400px; // 默认宽度
+      min-width: 300px;
+      max-width: 65%; // 增加最大宽度限制
+      height: 100%;
+      background: #ffffff;
+      overflow: hidden;
+    }
   }
 }
 
 // 响应式调整
 @media (max-width: 1200px) {
-  .sidebar-container .main-layout .content-area {
-    min-width: 250px;
-    max-width: 60%;
+  .sidebar-container .main-layout {
+    .content-area {
+      min-width: 250px;
+    }
+    
+    > .json-viewer-area {
+      width: 350px;
+      min-width: 250px;
+      max-width: 50%;
+    }
   }
 }
 
 @media (max-width: 768px) {
-  .sidebar-container .main-layout .content-area {
-    min-width: 200px;
-    max-width: 50%;
+  .sidebar-container .main-layout {
+    .content-area {
+      min-width: 200px;
+    }
+    
+    > .json-viewer-area {
+      width: 300px;
+      min-width: 200px;
+      max-width: 45%;
+    }
   }
 }
 </style>
