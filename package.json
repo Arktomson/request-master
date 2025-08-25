@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "_site": "docs/.vitepress/dist",
   "scripts": {
     "dev": "rsbuild dev",
     "dev-one": "NODE_ENV=development rsbuild build",
@@ -10,7 +11,9 @@
     "preview": "rsbuild preview",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "preversion": "npm install",
+    "version": "npm run build && git add -A && npm run docs:build"
   },
   "dependencies": {
     "@json-editor/json-editor": "^2.15.2",
