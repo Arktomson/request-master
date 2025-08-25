@@ -4,6 +4,11 @@
   "version": "0.0.1",
   "type": "module",
   "_site": "docs/.vitepress/dist",
+  "author": "胜簪",
+  "keywords": [
+    "Component"
+  ],
+  "thumb": "https://sitecdn.zcycdn.com/f2e-assets/21610aae-ee55-47bb-9a1c-1eb3c4dc4aab.svg",
   "scripts": {
     "dev": "rsbuild dev",
     "dev-one": "NODE_ENV=development rsbuild build",
