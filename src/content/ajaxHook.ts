@@ -114,6 +114,10 @@ function beginHook() {
       const cacheKey = getCacheKey(request);
       if(mockEnabled){
         const isFindMock = mockList.find((item: any) => {
+          // 检查Mock是否启用（enabled不为false）
+          const isEnabled = item.enabled !== false;
+          if (!isEnabled) return false;
+          
           if(isPathMatch) {
             const apartCurUrl = urlApart(request.url?.startsWith('http') ? request.url : window.location.origin + request.url);
             return `${item.origin}${item.purePath}` === `${apartCurUrl.origin}${apartCurUrl.purePath}` && item.method === request.method;
@@ -147,6 +151,10 @@ function beginHook() {
               if (mockEnabled) {
                 // 🚀 性能优化：使用Map查找，时间复杂度从O(n)降到O(1)
                 const isFindMock = mockList.find((item: any) => {
+                  // 检查Mock是否启用（enabled不为false）
+                  const isEnabled = item.enabled !== false;
+                  if (!isEnabled) return false;
+                  
                   if(isPathMatch) {
                     const apartCurUrl = urlApart(request.url?.startsWith('http') ? request.url : window.location.origin + request.url);
                     return `${item.origin}${item.purePath}` === `${apartCurUrl.origin}${apartCurUrl.purePath}` && item.method === request.method;
@@ -299,3 +307,4 @@ beginHook();
 // beginHook();
 // retryInit();
 // microTaskInit();
+

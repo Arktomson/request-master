@@ -20,3 +20,10 @@ export enum ProcessStatus {
   ERROR_NO_CACHE = "error_no_cache",
   NO_DO_SOMETHING = "no_do_something",
 }
+
+export const MonacoEditorConfig = {
+  autoAdjust: {
+    minHeight: 60,
+    maxHeight: 450,
+  },
+};

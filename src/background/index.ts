@@ -44,14 +44,20 @@ async function initConfig() {
     mockEnabled: false,
     monitorEnabled: false,
     sidebarWidth: 900,
-    queryPanelVisible: true,
-    headersPanelVisible: true,
-    bodyPanelVisible: true,
+    queryPanelVisible: false,
+    headersPanelVisible: false,
+    bodyPanelVisible: false,
     mockResponse: true,
     mockRequestBody: false,
     isPathMatch: false,
     sidebarPosition: 'right',
     sidebarHeight: 600,
+    // 布局记忆化相关变量
+    monitorSectionWidth: 400,  // Monitor区域宽度
+    mockSectionWidth: 300,     // Mock区域宽度
+    jsonViewerWidth: 400,      // JsonViewer区域宽度
+    horizontalSplitRatio: 0.6, // 水平分割比例（Monitor:Mock）
+    verticalSplitRatio: 0.7,   // 垂直分割比例（左侧:右侧）
   };
   for (const [key, val] of Object.entries(defaultSettings)) {
     if (isNil(stored[key])) {

@@ -2,6 +2,7 @@ import hashSum from 'hash-sum';
 import Storage from './storage';
 import stringify from 'json-stable-stringify';
 import { isNil } from 'lodash-es';
+// import * as monaco from 'monaco-editor';
 
 export const chromeLocalStorage = new Storage('local');
 export const chromeSyncStorage = new Storage('sync');

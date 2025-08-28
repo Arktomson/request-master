@@ -8,45 +8,78 @@
       <!-- 左侧标签栏 -->
 
       <!-- 中间主要内容区 -->
-      <div class="content-area" :class="{ 'bottom-layout': sidebarPosition === 'bottom' }">
+      <div
+        class="content-area"
+        :class="{ 'bottom-layout': sidebarPosition === 'bottom' }"
+      >
         <!-- 请求监测区域 -->
-        <MonitorSection ref="monitorSectionRef" :requestList="requestList" :selectedRequestIndex="selectedRequestIndex"
-          @select-request="selectRequest" @clear-requestList="handleClearRequests" @delete-request="deleteRequest"
-          @add-to-mock="addRequestToMock" class="monitor-section" />
+        <MonitorSection
+          ref="monitorSectionRef"
+          :requestList="requestList"
+          :selectedRequestIndex="selectedRequestIndex"
+          @select-request="selectRequest"
+          @clear-requestList="handleClearRequests"
+          @delete-request="deleteRequest"
+          @add-to-mock="addRequestToMock"
+          class="monitor-section"
+        />
 
         <!-- 可拖拽分隔线(垂直方向) -->
-        <ResizeHandle :direction="sidebarPosition === 'bottom' ? 'vertical' : 'horizontal'" @resize="handleHorizontalResize" class="resize-handle" />
+        <ResizeHandle
+          :direction="sidebarPosition === 'bottom' ? 'vertical' : 'horizontal'"
+          @resize="handleHorizontalResize"
+          class="resize-handle"
+        />
 
         <!-- Mock列表区域 -->
-        <MockSection ref="mockSectionRef" :mockList="mockList" :selectedMockIndex="selectedMockIndex"
-          @select-mock="selectMock" @edit-mock="editMock" @delete-mock="deleteMock"
-          @clear-all-mocks="handleClearAllMocks" class="mock-section" />
+        <MockSection
+          ref="mockSectionRef"
+          :mockList="mockList"
+          :selectedMockIndex="selectedMockIndex"
+          @select-mock="selectMock"
+          @edit-mock="editMock"
+          @delete-mock="deleteMock"
+          @clear-all-mocks="handleClearAllMocks"
+          @toggle-mock-item="handleToggleMockItem"
+          @batch-toggle-mocks="handleBatchToggleMocks"
+          class="mock-section"
+        />
       </div>
 
       <!-- 可拖拽分隔线 -->
       <ResizeHandle @resize="handleVerticalResize" />
 
       <!-- 右侧JSON查看器 -->
-      <JsonViewer ref="jsonViewerRef" :data="currentSelectedData" :type="currentSelectedType"
-        @save-response="handleSaveResponse" @save-query="handleSaveQuery" @save-headers="handleSaveHeaders"
-        @save-body="handleSaveBody" />
+      <JsonViewer
+        ref="jsonViewerRef"
+        :data="currentSelectedData"
+        :type="currentSelectedType"
+        @save-response="handleSaveResponse"
+        @save-query="handleSaveQuery"
+        @save-headers="handleSaveHeaders"
+        @save-body="handleSaveBody"
+      />
     </div>
 
     <!-- Mock弹窗 -->
-    <MockDialog v-model="mockDialogVisible" :isEditMode="isEditMode" :currentMock="currentMock" @save="saveMock" />
+    <MockDialog
+      v-model="mockDialogVisible"
+      :isEditMode="isEditMode"
+      :currentMock="currentMock"
+      @save="saveMock"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-  ref,
-  computed,
-  onMounted,
-  toRaw,
-  watch,
-} from 'vue';
+import { ref, computed, onMounted, toRaw, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { chromeLocalStorage, urlApart, messageToContent, generateCacheKey } from '@/utils';
+import {
+  chromeLocalStorage,
+  urlApart,
+  messageToContent,
+  generateCacheKey,
+} from '@/utils';
 // 导入组件
 import Header from './components/Header.vue';
 import MonitorSection from './components/MonitorSection.vue';
@@ -71,7 +104,6 @@ const currentMock = ref({
   enabled: true,
   response: '{}',
 });
-
 
 // DOM引用
 const monitorSectionRef = ref();
@@ -180,6 +212,34 @@ const saveMock = (mockData: any) => {
   ElMessage.success(isEditMode.value ? 'Mock已更新' : 'Mock已添加');
 };
 
+const handleToggleMockItem = (index: number, enabled: boolean) => {
+  if (index >= 0 && index < mockList.value.length) {
+    mockList.value[index].enabled = enabled;
+    chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
+
+    // 同步到ajaxHook
+    messageToContent({
+      type: 'mockList_change',
+      data: toRaw(mockList.value),
+    });
+  }
+};
+
+// 批量切换Mock项状态
+const handleBatchToggleMocks = (enabled: boolean) => {
+  mockList.value.forEach((item) => {
+    item.enabled = enabled;
+  });
+
+  chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
+
+  // 同步到ajaxHook
+  messageToContent({
+    type: 'mockList_change',
+    data: toRaw(mockList.value),
+  });
+};
+
 const addRequestToMock = async (index: number) => {
   const request = requestList.value[index];
   // 检查是否已存在相同URL和方法的Mock
@@ -197,6 +257,7 @@ const addRequestToMock = async (index: number) => {
   const newMock = {
     ...omit(request, ['isMock']),
     response: toRaw(response),
+    enabled: true, // 默认启用新添加的Mock
   };
 
   // 添加到Mock列表
@@ -269,8 +330,8 @@ const handleSaveBody = async (body: string) => {
       const parsedBody = JSON.parse(body);
       mockItem.params = parsedBody;
       mockItem.cacheKey = generateCacheKey(
-        mockItem.url, 
-        parsedBody, 
+        mockItem.url,
+        parsedBody,
         mockItem.method
       );
       chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
@@ -288,8 +349,10 @@ const handleVerticalResize = (size: number) => {
 
   const containerWidth = container.getBoundingClientRect().width;
   const contentArea = document.querySelector('.content-area') as HTMLElement;
-  const jsonViewerArea = document.querySelector('.json-viewer-area') as HTMLElement;
-  
+  const jsonViewerArea = document.querySelector(
+    '.json-viewer-area'
+  ) as HTMLElement;
+
   if (!contentArea || !jsonViewerArea) return;
 
   // 确保调整后的宽度不超出合理范围
@@ -305,6 +368,13 @@ const handleVerticalResize = (size: number) => {
   contentArea.style.flexShrink = '0';
   jsonViewerArea.style.width = `${newSize}px`;
   jsonViewerArea.style.flexShrink = '0';
+
+  // 记忆化布局设置
+  const verticalSplitRatio = newSize / containerWidth;
+  chromeLocalStorage.set({
+    jsonViewerWidth: newSize,
+    verticalSplitRatio: verticalSplitRatio,
+  });
 };
 
 const handleHorizontalResize = (size: number) => {
@@ -328,6 +398,13 @@ const handleHorizontalResize = (size: number) => {
       mockSection.style.width = `calc(100% - ${widthPercent}% - 3px)`; // 减去分隔线的宽度
       mockSection.style.minWidth = '250px';
       mockSection.style.height = '100%';
+
+      // 记忆化水平分割比例
+      const horizontalSplitRatio = newSize / containerWidth;
+      chromeLocalStorage.set({
+        monitorSectionWidth: newSize,
+        horizontalSplitRatio: horizontalSplitRatio,
+      });
     } else {
       // 右侧布局：垂直调整高度
       const containerHeight = container.getBoundingClientRect().height;
@@ -343,33 +420,71 @@ const handleHorizontalResize = (size: number) => {
       mockSection.style.height = `calc(100% - ${heightPercent}% - 3px)`; // 减去分隔线的高度
       mockSection.style.minHeight = '100px';
       mockSection.style.width = '100%';
+
+      // 记忆化垂直分割比例
+      const horizontalSplitRatio = newSize / containerHeight;
+      chromeLocalStorage.set({
+        monitorSectionHeight: newSize,
+        horizontalSplitRatio: horizontalSplitRatio,
+      });
     }
   }
 };
 
 // 初始化布局大小
-const initLayout = () => {
-  // 初始化垂直分割比例
+const initLayout = async () => {
+  // 从存储中获取布局设置
+  const {
+    jsonViewerWidth = 400,
+    verticalSplitRatio = 0.4,
+    monitorSectionWidth = 400,
+    monitorSectionHeight = 300,
+    horizontalSplitRatio = 0.6,
+  } = await chromeLocalStorage.get([
+    'jsonViewerWidth',
+    'verticalSplitRatio',
+    'monitorSectionWidth',
+    'monitorSectionHeight',
+    'horizontalSplitRatio',
+  ]);
+
+  // 初始化垂直分割比例（左右分割）
   const container = document.querySelector('.main-layout') as HTMLElement;
   if (container) {
     const containerWidth = container.getBoundingClientRect().width;
-    const jsonViewerWidth = containerWidth * 0.4; // JSON查看器占40%
-    handleVerticalResize(jsonViewerWidth);
+    // 优先使用保存的宽度，如果不合理则使用比例计算
+    let targetJsonViewerWidth = jsonViewerWidth;
+    if (jsonViewerWidth < 300 || jsonViewerWidth > containerWidth * 0.65) {
+      targetJsonViewerWidth = containerWidth * verticalSplitRatio;
+    }
+    handleVerticalResize(targetJsonViewerWidth);
   }
 
-  // 初始化水平分割比例
+  // 初始化水平分割比例（上下分割）
   const contentArea = document.querySelector('.content-area') as HTMLElement;
   if (contentArea) {
     if (sidebarPosition.value === 'bottom') {
       // 底部布局：初始化水平分割（宽度）
       const contentWidth = contentArea.getBoundingClientRect().width;
-      const monitorWidth = contentWidth * 0.6; // 监控区域占60%
-      handleHorizontalResize(monitorWidth);
+      let targetMonitorWidth = monitorSectionWidth;
+      if (
+        monitorSectionWidth < 300 ||
+        monitorSectionWidth > contentWidth - 250
+      ) {
+        targetMonitorWidth = contentWidth * horizontalSplitRatio;
+      }
+      handleHorizontalResize(targetMonitorWidth);
     } else {
       // 右侧布局：初始化垂直分割（高度）
       const contentHeight = contentArea.getBoundingClientRect().height;
-      const monitorHeight = contentHeight * 0.6; // 监控区域占60%
-      handleHorizontalResize(monitorHeight);
+      let targetMonitorHeight = monitorSectionHeight;
+      if (
+        monitorSectionHeight < 100 ||
+        monitorSectionHeight > contentHeight - 120
+      ) {
+        targetMonitorHeight = contentHeight * horizontalSplitRatio;
+      }
+      handleHorizontalResize(targetMonitorHeight);
     }
   }
 };
@@ -383,7 +498,10 @@ const preProcessRequestData = (data: any) => {
 
 const onPageHide = () => {
   console.log('onPageHide');
-  window.removeEventListener('resize', initLayout);
+  // 移除事件监听器
+  window.removeEventListener('resize', async () => {
+    await initLayout();
+  });
   chromeLocalStorage.set({
     mockList: toRaw(mockList.value),
   });
@@ -400,12 +518,21 @@ const setupMessageListener = () => {
     sendResponse({ success: true });
   });
 
-  chromeLocalStorage.onChange((changes) => {
-    if (changes.sidebarPosition && changes.sidebarPosition.newValue !== sidebarPosition.value){
-      sidebarPosition.value = changes.sidebarPosition.newValue;
-      initLayout();
-    }
-  },['sidebarPosition']);
+  chromeLocalStorage.onChange(
+    async (changes) => {
+      if (
+        changes.sidebarPosition &&
+        changes.sidebarPosition.newValue !== sidebarPosition.value
+      ) {
+        sidebarPosition.value = changes.sidebarPosition.newValue;
+        // 等待DOM更新后初始化布局
+        setTimeout(async () => {
+          await initLayout();
+        }, 100);
+      }
+    },
+    ['sidebarPosition']
+  );
 
   window.addEventListener('pagehide', onPageHide);
 };
@@ -426,19 +553,25 @@ watch(
   { deep: true }
 );
 
-
 // 生命周期钩子
 onMounted(async () => {
   // 加载Mock列表
-  const { mockList: mockListData = [], sidebarPosition: sidebarPositionData = 'right' } = await chromeLocalStorage.get(['mockList', 'sidebarPosition']);
+  const {
+    mockList: mockListData = [],
+    sidebarPosition: sidebarPositionData = 'right',
+  } = await chromeLocalStorage.get(['mockList', 'sidebarPosition']);
   mockList.value = mockListData;
   sidebarPosition.value = sidebarPositionData;
 
-  // // 等待DOM渲染完成后初始化布局
-  setTimeout(initLayout, 100);
+  // 等待DOM渲染完成后初始化布局
+  setTimeout(async () => {
+    await initLayout();
+  }, 100);
 
-  // // 监听窗口大小变化，重新调整布局
-  window.addEventListener('resize', initLayout);
+  // 监听窗口大小变化，重新调整布局
+  window.addEventListener('resize', async () => {
+    await initLayout();
+  });
 
   // 设置消息监听器
   setupMessageListener();
@@ -464,15 +597,18 @@ onMounted(async () => {
     .content-area {
       flex: 1;
       min-width: 300px;
+      // max-width: 70%;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      background: #ffffff;
-      
+      // border-right: 1px solid #ebeef5;
+      background-color: #fff;
+
       // 底部布局时改为水平排列
       &.bottom-layout {
         flex-direction: row;
-        
+        // max-width: none;
+
         // 在底部布局时，MonitorSection 和 MockSection 水平排列
         :deep(.monitor-section) {
           flex: 1;
@@ -482,7 +618,7 @@ onMounted(async () => {
           height: 100%;
           overflow: hidden;
         }
-        
+
         :deep(.mock-section) {
           flex: 1;
           min-width: 250px;
@@ -490,13 +626,13 @@ onMounted(async () => {
           height: 100%;
           overflow: hidden;
         }
-        
+
         // 调整 ResizeHandle 的方向
         :deep(.resize-handle) {
           width: 3px !important;
           height: 100% !important;
           cursor: col-resize !important;
-          
+
           &.horizontal {
             width: 3px !important;
             height: 100% !important;
@@ -505,7 +641,6 @@ onMounted(async () => {
         }
       }
     }
-
     // ResizeHandle 样式
     > .resize-handle {
       flex-shrink: 0;
@@ -514,7 +649,6 @@ onMounted(async () => {
       cursor: col-resize;
       border-left: 1px solid #e0e0e0;
       border-right: 1px solid #e0e0e0;
-      
       &:hover {
         background: #e0e0e0;
       }
@@ -539,7 +673,6 @@ onMounted(async () => {
     .content-area {
       min-width: 250px;
     }
-    
     > .json-viewer-area {
       width: 350px;
       min-width: 250px;
@@ -553,7 +686,6 @@ onMounted(async () => {
     .content-area {
       min-width: 200px;
     }
-    
     > .json-viewer-area {
       width: 300px;
       min-width: 200px;

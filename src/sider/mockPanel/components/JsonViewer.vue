@@ -80,6 +80,13 @@ import { List, Document, DocumentCopy } from '@element-plus/icons-vue';
 import { chromeLocalStorage, messageToContent } from '@/utils';
 import * as monaco from 'monaco-editor';
 import { debounce } from 'lodash-es';
+import { MonacoEditorConfig } from '@/config';
+import { EditorHeightManager } from '@/utils/monaco';
+
+const { autoAdjust } = MonacoEditorConfig;
+
+
+
 
 // 定义属性
 const props = defineProps<{
@@ -184,6 +191,13 @@ let bodyEditor: monaco.editor.IStandaloneCodeEditor | null = null;
 
 
 
+// 存储高度管理器实例
+let queryHeightManager: EditorHeightManager | null = null;
+let headersHeightManager: EditorHeightManager | null = null;
+let bodyHeightManager: EditorHeightManager | null = null;
+
+
+
 // 创建编辑器的函数
 const createEditors = async () => {
   // 创建主编辑器（响应体）
@@ -221,17 +235,21 @@ const createEditors = async () => {
 
   // 创建Query编辑器
   if (!queryEditor && showQueryPanel.value && queryContent.value) {
-    console.log('queryContent', queryContent.value)
+    console.log('Creating queryEditor with content:', queryContent.value)
 
     queryEditor = monaco.editor.create(queryEditorRef.value as HTMLElement, {
       value: queryContent.value,
       language: 'json',
       theme: 'vs',
-      readOnly: isReadonly.value, // 根据类型设置只读状态
+      readOnly: isReadonly.value,
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
-      automaticLayout: true,
+      automaticLayout: false, // 禁用自动布局
+      wordWrap: 'on',
     });
+
+    // 创建高度管理器
+    queryHeightManager = new EditorHeightManager(queryEditor, autoAdjust.minHeight, autoAdjust.maxHeight);
 
     // 监听内容变化，自动保存（仅mock类型）
     queryEditor.onDidChangeModelContent((e) => {
@@ -250,16 +268,21 @@ const createEditors = async () => {
 
   // 创建Headers编辑器
   if (!headersEditor && showHeaderPanel.value && headerContent.value) {
+    console.log('Creating headersEditor with content:', headerContent.value)
 
     headersEditor = monaco.editor.create(headersEditorRef.value as HTMLElement, {
       value: headerContent.value,
       language: 'json',
       theme: 'vs',
-      readOnly: isReadonly.value, // 根据类型设置只读状态
+      readOnly: isReadonly.value,
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
-      automaticLayout: true,
+      automaticLayout: false,
+      wordWrap: 'on',
     });
+
+    // 创建高度管理器
+    headersHeightManager = new EditorHeightManager(headersEditor, autoAdjust.minHeight, autoAdjust.maxHeight);
 
     // 监听内容变化，自动保存（仅mock类型）
     headersEditor.onDidChangeModelContent((e) => {
@@ -278,16 +301,21 @@ const createEditors = async () => {
 
   // 创建Body编辑器
   if (!bodyEditor && showBodyPanel.value && bodyContent.value) {
+    console.log('Creating bodyEditor with content:', bodyContent.value)
 
     bodyEditor = monaco.editor.create(bodyEditorRef.value as HTMLElement, {
       value: bodyContent.value,
       language: 'json',
       theme: 'vs',
-      readOnly: isReadonly.value, // 根据类型设置只读状态
+      readOnly: isReadonly.value,
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
-      automaticLayout: true,
+      automaticLayout: false,
+      wordWrap: 'on',
     });
+
+    // 创建高度管理器
+    bodyHeightManager = new EditorHeightManager(bodyEditor, autoAdjust.minHeight, autoAdjust.maxHeight);
 
     // 监听内容变化，自动保存（仅mock类型）
     bodyEditor.onDidChangeModelContent((e) => {
@@ -307,10 +335,16 @@ const createEditors = async () => {
 
 const onPageHide = () => {
   console.log('onPageHide1');
+  // 清理编辑器
   editor?.dispose();
   queryEditor?.dispose();
   headersEditor?.dispose();
   bodyEditor?.dispose();
+
+  // 清理高度管理器
+  queryHeightManager?.destroy();
+  headersHeightManager?.destroy();
+  bodyHeightManager?.destroy();
 
   chromeLocalStorage.set({
     queryPanelVisible: showQueryPanel.value,
@@ -372,6 +406,28 @@ watch(bodyContent, (newValue) => {
 
 
 watch([showQueryPanel, showHeaderPanel, showBodyPanel, queryContent, headerContent, bodyContent], () => {
+  // 销毁不需要的编辑器和高度管理器
+  if (queryEditor && (!showQueryPanel.value || !queryContent.value)) {
+    queryHeightManager?.destroy();
+    queryHeightManager = null;
+    queryEditor.dispose();
+    queryEditor = null;
+  }
+  
+  if (headersEditor && (!showHeaderPanel.value || !headerContent.value)) {
+    headersHeightManager?.destroy();
+    headersHeightManager = null;
+    headersEditor.dispose();
+    headersEditor = null;
+  }
+  
+  if (bodyEditor && (!showBodyPanel.value || !bodyContent.value)) {
+    bodyHeightManager?.destroy();
+    bodyHeightManager = null;
+    bodyEditor.dispose();
+    bodyEditor = null;
+  }
+  
   createEditors();
 });
 
@@ -510,9 +566,9 @@ const emit = defineEmits<{
 
   .info-panel {
     border-bottom: 1px solid #ebeef5;
-    flex: 0.4;
     display: flex;
     flex-direction: column;
+    flex-shrink: 0; // 防止被压缩
 
     .panel-header {
       display: flex;
@@ -540,7 +596,9 @@ const emit = defineEmits<{
     }
 
     .monaco-editor {
-      flex: 1;
+      // min-height: v-bind(autoAdjust.minHeight); // 最小高度
+      // max-height: v-bind(autoAdjust.maxHeight); // 最大高度
+      overflow: hidden; // 防止溢出
     }
   }
 
