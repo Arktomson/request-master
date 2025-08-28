@@ -20,7 +20,8 @@
         <!-- Mock列表区域 -->
         <MockSection ref="mockSectionRef" :mockList="mockList" :selectedMockIndex="selectedMockIndex"
           @select-mock="selectMock" @edit-mock="editMock" @delete-mock="deleteMock"
-          @clear-all-mocks="handleClearAllMocks" class="mock-section" />
+          @clear-all-mocks="handleClearAllMocks" @toggle-mock-item="handleToggleMockItem" 
+          @batch-toggle-mocks="handleBatchToggleMocks" class="mock-section" />
       </div>
 
       <!-- 可拖拽分隔线 -->
@@ -180,6 +181,34 @@ const saveMock = (mockData: any) => {
   ElMessage.success(isEditMode.value ? 'Mock已更新' : 'Mock已添加');
 };
 
+const handleToggleMockItem = (index: number, enabled: boolean) => {
+  if (index >= 0 && index < mockList.value.length) {
+    mockList.value[index].enabled = enabled;
+    chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
+    
+    // 同步到ajaxHook
+    messageToContent({
+      type: 'mockList_change',
+      data: toRaw(mockList.value),
+    });
+  }
+};
+
+// 批量切换Mock项状态
+const handleBatchToggleMocks = (enabled: boolean) => {
+  mockList.value.forEach(item => {
+    item.enabled = enabled;
+  });
+  
+  chromeLocalStorage.set({ mockList: toRaw(mockList.value) });
+  
+  // 同步到ajaxHook
+  messageToContent({
+    type: 'mockList_change',
+    data: toRaw(mockList.value),
+  });
+};
+
 const addRequestToMock = async (index: number) => {
   const request = requestList.value[index];
   // 检查是否已存在相同URL和方法的Mock
@@ -197,6 +226,7 @@ const addRequestToMock = async (index: number) => {
   const newMock = {
     ...omit(request, ['isMock']),
     response: toRaw(response),
+    enabled: true, // 默认启用新添加的Mock
   };
 
   // 添加到Mock列表
@@ -328,6 +358,13 @@ const handleHorizontalResize = (size: number) => {
       mockSection.style.width = `calc(100% - ${widthPercent}% - 3px)`; // 减去分隔线的宽度
       mockSection.style.minWidth = '250px';
       mockSection.style.height = '100%';
+
+      // 记忆化水平分割比例
+      const horizontalSplitRatio = newSize / containerWidth;
+      chromeLocalStorage.set({ 
+        monitorSectionWidth: newSize,
+        horizontalSplitRatio: horizontalSplitRatio
+      });
     } else {
       // 右侧布局：垂直调整高度
       const containerHeight = container.getBoundingClientRect().height;
@@ -343,33 +380,65 @@ const handleHorizontalResize = (size: number) => {
       mockSection.style.height = `calc(100% - ${heightPercent}% - 3px)`; // 减去分隔线的高度
       mockSection.style.minHeight = '100px';
       mockSection.style.width = '100%';
+
+      // 记忆化垂直分割比例
+      const horizontalSplitRatio = newSize / containerHeight;
+      chromeLocalStorage.set({ 
+        monitorSectionHeight: newSize,
+        horizontalSplitRatio: horizontalSplitRatio
+      });
     }
   }
 };
 
 // 初始化布局大小
-const initLayout = () => {
-  // 初始化垂直分割比例
+const initLayout = async () => {
+  // 从存储中获取布局设置
+  const {
+    jsonViewerWidth = 400,
+    verticalSplitRatio = 0.4,
+    monitorSectionWidth = 400,
+    monitorSectionHeight = 300,
+    horizontalSplitRatio = 0.6
+  } = await chromeLocalStorage.get([
+    'jsonViewerWidth',
+    'verticalSplitRatio', 
+    'monitorSectionWidth',
+    'monitorSectionHeight',
+    'horizontalSplitRatio'
+  ]);
+
+  // 初始化垂直分割比例（左右分割）
   const container = document.querySelector('.main-layout') as HTMLElement;
   if (container) {
     const containerWidth = container.getBoundingClientRect().width;
-    const jsonViewerWidth = containerWidth * 0.4; // JSON查看器占40%
-    handleVerticalResize(jsonViewerWidth);
+    // 优先使用保存的宽度，如果不合理则使用比例计算
+    let targetJsonViewerWidth = jsonViewerWidth;
+    if (jsonViewerWidth < 300 || jsonViewerWidth > containerWidth * 0.65) {
+      targetJsonViewerWidth = containerWidth * verticalSplitRatio;
+    }
+    handleVerticalResize(targetJsonViewerWidth);
   }
 
-  // 初始化水平分割比例
+  // 初始化水平分割比例（上下分割）
   const contentArea = document.querySelector('.content-area') as HTMLElement;
   if (contentArea) {
     if (sidebarPosition.value === 'bottom') {
       // 底部布局：初始化水平分割（宽度）
       const contentWidth = contentArea.getBoundingClientRect().width;
-      const monitorWidth = contentWidth * 0.6; // 监控区域占60%
-      handleHorizontalResize(monitorWidth);
+      let targetMonitorWidth = monitorSectionWidth;
+      if (monitorSectionWidth < 300 || monitorSectionWidth > contentWidth - 250) {
+        targetMonitorWidth = contentWidth * horizontalSplitRatio;
+      }
+      handleHorizontalResize(targetMonitorWidth);
     } else {
       // 右侧布局：初始化垂直分割（高度）
       const contentHeight = contentArea.getBoundingClientRect().height;
-      const monitorHeight = contentHeight * 0.6; // 监控区域占60%
-      handleHorizontalResize(monitorHeight);
+      let targetMonitorHeight = monitorSectionHeight;
+      if (monitorSectionHeight < 100 || monitorSectionHeight > contentHeight - 120) {
+        targetMonitorHeight = contentHeight * horizontalSplitRatio;
+      }
+      handleHorizontalResize(targetMonitorHeight);
     }
   }
 };
@@ -383,7 +452,10 @@ const preProcessRequestData = (data: any) => {
 
 const onPageHide = () => {
   console.log('onPageHide');
-  window.removeEventListener('resize', initLayout);
+  // 移除事件监听器
+  window.removeEventListener('resize', async () => {
+    await initLayout();
+  });
   chromeLocalStorage.set({
     mockList: toRaw(mockList.value),
   });
@@ -400,10 +472,13 @@ const setupMessageListener = () => {
     sendResponse({ success: true });
   });
 
-  chromeLocalStorage.onChange((changes) => {
+  chromeLocalStorage.onChange(async (changes) => {
     if (changes.sidebarPosition && changes.sidebarPosition.newValue !== sidebarPosition.value){
       sidebarPosition.value = changes.sidebarPosition.newValue;
-      initLayout();
+      // 等待DOM更新后初始化布局
+      setTimeout(async () => {
+        await initLayout();
+      }, 100);
     }
   },['sidebarPosition']);
 
@@ -434,11 +509,15 @@ onMounted(async () => {
   mockList.value = mockListData;
   sidebarPosition.value = sidebarPositionData;
 
-  // // 等待DOM渲染完成后初始化布局
-  setTimeout(initLayout, 100);
+  // 等待DOM渲染完成后初始化布局
+  setTimeout(async () => {
+    await initLayout();
+  }, 100);
 
-  // // 监听窗口大小变化，重新调整布局
-  window.addEventListener('resize', initLayout);
+  // 监听窗口大小变化，重新调整布局
+  window.addEventListener('resize', async () => {
+    await initLayout();
+  });
 
   // 设置消息监听器
   setupMessageListener();
@@ -525,3 +604,4 @@ onMounted(async () => {
   }
 }
 </style>
+

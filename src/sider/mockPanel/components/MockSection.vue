@@ -13,6 +13,14 @@
 
     <!-- Mock列表头部 -->
     <div class="mock-header">
+      <div class="checkbox-column">
+        <el-checkbox
+          :model-value="selectAllState.checked"
+          :indeterminate="selectAllState.indeterminate"
+          @change="handleSelectAll"
+          size="default"
+        />
+      </div>
       <div class="url-column">URL</div>
       <div class="method-column">方法</div>
       <div class="action-column">操作</div>
@@ -31,6 +39,13 @@
           :class="{ selected: selectedMockIndex === index }"
           @click="emit('select-mock', index)"
         >
+          <div class="checkbox-column" @click.stop>
+            <el-checkbox
+              :model-value="item.enabled !== false"
+              @change="(checked: boolean) => handleMockItemToggle(index, checked)"
+              size="default"
+            />
+          </div>
           <div class="url-column text-ellipsis">
             <el-tooltip
               effect="dark"
@@ -47,14 +62,6 @@
             </el-tag>
           </div>
           <div class="action-column">
-            <!-- <el-button
-              type="primary"
-              size="small"
-              circle
-              @click.stop="emit('edit-mock', index)"
-            >
-              <el-icon><Edit /></el-icon>
-            </el-button> -->
             <el-button
               type="danger"
               size="small"
@@ -71,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import {
   ElMessage,
   ElSwitch,
@@ -80,16 +87,13 @@ import {
   ElEmpty,
   ElTooltip,
   ElIcon,
+  ElCheckbox,
 } from 'element-plus';
-import {
-  chromeLocalStorage,
-  getMethodType,
-  messageToContent,
-} from '@/utils';
+import { chromeLocalStorage, getMethodType, messageToContent } from '@/utils';
 import { Edit, Delete } from '@element-plus/icons-vue';
 
 // 接收父组件传递的属性
-defineProps<{
+const props = defineProps<{
   mockList: any[];
   selectedMockIndex: number;
 }>();
@@ -100,12 +104,44 @@ const emit = defineEmits<{
   (e: 'edit-mock', index: number): void;
   (e: 'delete-mock', index: number): void;
   (e: 'clear-all-mocks'): void;
+  (e: 'toggle-mock-item', index: number, enabled: boolean): void;
+  (e: 'batch-toggle-mocks', enabled: boolean): void;
 }>();
 
 // DOM引用
 const mockSectionRef = ref<HTMLElement | null>(null);
 const mockEnabled = ref(false);
 
+// 计算全选状态
+const selectAllState = computed(() => {
+  if (props.mockList.length === 0) {
+    return { checked: false, indeterminate: false };
+  }
+
+  const enabledCount = props.mockList.filter(
+    (item) => item.enabled !== false
+  ).length;
+
+  if (enabledCount === 0) {
+    return { checked: false, indeterminate: false };
+  } else if (enabledCount === props.mockList.length) {
+    return { checked: true, indeterminate: false };
+  } else {
+    return { checked: false, indeterminate: true };
+  }
+});
+
+// 处理全选/取消全选
+const handleSelectAll = (checked: boolean | string | number) => {
+  const isChecked = Boolean(checked);
+  emit('batch-toggle-mocks', isChecked);
+  // ElMessage.success(isChecked ? '已全部启用Mock' : '已全部禁用Mock');
+};
+
+const handleMockItemToggle = (index: number, enabled: boolean) => {
+  emit('toggle-mock-item', index, enabled);
+  // ElMessage.success(enabled ? 'Mock已启用' : 'Mock已禁用');
+};
 
 const handleMockToggle = (enabled: boolean | string | number) => {
   messageToContent({
@@ -156,15 +192,23 @@ defineExpose({
 
   .mock-header {
     display: flex;
-    padding: 8px 12px;
     background-color: #f5f7fa;
     font-weight: bold;
     font-size: 12px;
     color: #606266;
     border-bottom: 1px solid #ebeef5;
+    align-items: center;
+
+    .checkbox-column {
+      width: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
 
     .url-column {
       flex: 1;
+      padding-left: 0;
     }
 
     .method-column {
@@ -174,7 +218,9 @@ defineExpose({
 
     .action-column {
       width: 100px;
-      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   }
 
@@ -216,10 +262,11 @@ defineExpose({
 
     .mock-item {
       display: flex;
-      padding: 4px 6px;
+      // padding: 4px 6px;
       align-items: center;
       border-bottom: 1px solid #ebeef5;
       cursor: pointer;
+      min-height: 32px;
 
       &:hover {
         background-color: #f5f7fa;
@@ -229,19 +276,29 @@ defineExpose({
         background-color: #ecf5ff;
       }
 
+      .checkbox-column {
+        width: 60px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
       .url-column {
         flex: 1;
         font-size: 12px;
+        padding-left: 0;
       }
 
       .method-column {
         width: 70px;
         text-align: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
       }
 
       .action-column {
         width: 100px;
-        text-align: center;
         display: flex;
         align-items: center;
         justify-content: center;
