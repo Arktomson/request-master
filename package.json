@@ -47,7 +47,7 @@
     "ssestream": "^1.1.0",
     "typescript": "^5.8.3",
     "unplugin-element-plus": "^0.10.0",
-    "vitepress": "^1.6.3",
+    "vitepress": "^1.6.4",
     "vue-loader": "^17.4.2",
     "vue-tsc": "^2.2.4"
   }
