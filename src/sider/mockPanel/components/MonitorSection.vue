@@ -37,6 +37,7 @@
         :class="{
           selected: props.selectedRequestIndex === item.originalIndex,
           'is-mock': item.req.isMock === true,
+          'is-params-replace': item.req.isParamsReplace === true,
         }"
         @click="emit('select-request', item.originalIndex)"
         @dblclick="emit('add-to-mock', item.originalIndex)"
@@ -222,7 +223,7 @@ defineExpose({
           position: absolute;
           pointer-events: none;
           top: 2px;
-          right: 4px;
+          right: 2px;
           background-color: #67c23a;
           color: white;
           font-size: 8px;
@@ -233,6 +234,27 @@ defineExpose({
 
         &.selected {
           background-color: #e1f3d8;
+        }
+      }
+      &.is-params-replace {
+        background-color: #e8f5ff;
+        border-left: 3px solid #409EFF;
+        position: relative;
+        &::before {
+          content: 'MOCK';
+          position: absolute;
+          pointer-events: none;
+          top: 2px;
+          right: 2px;
+          background-color: #409EFF;
+          color: white;
+          font-size: 8px;
+          padding: 1px 4px;
+          border-radius: 2px;
+          font-weight: bold;
+        }
+        &.selected {
+          background-color: rgba(64, 158, 255, 0.2);
         }
       }
 

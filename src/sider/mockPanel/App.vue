@@ -255,7 +255,7 @@ const addRequestToMock = async (index: number) => {
   const { response } = request;
   // 创建新的Mock配置
   const newMock = {
-    ...omit(request, ['isMock']),
+    ...omit(request, ['isMock', 'isParamsReplace']),
     response: toRaw(response),
     enabled: true, // 默认启用新添加的Mock
   };

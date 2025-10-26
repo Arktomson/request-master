@@ -54,7 +54,7 @@ function filterSituation(resp) {
     // 支持JSON对象和JSON数组
     const isJsonObject = trimmedData.startsWith('{') && trimmedData.endsWith('}');
     const isJsonArray = trimmedData.startsWith('[') && trimmedData.endsWith(']');
-    
+
     if (!isJsonObject && !isJsonArray) {
       return false;
     }
@@ -77,7 +77,7 @@ function beginHook() {
 
   console.log('启动ajaxHook', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
   console.log('monitorEnabled', monitorEnabled);
- 
+
   if (monitorEnabled || (urlMatch && disasterRecoveryProcessing)) {
     const ajaxHooker = ajaxInterface();
     ajaxHooker.hook(async (request: AjaxHookRequest) => {
@@ -85,7 +85,7 @@ function beginHook() {
         await new Promise(resolve => setTimeout(resolve, 10));
         console.log('等待配置中ing', dayjs().format('YYYY-MM-DD HH:mm:ss.SSS'));
       }
-      if(!alreadyConfigInit) { 
+      if(!alreadyConfigInit) {
         const {
           monitorEnabled: monitorEnabledInit,
           disasterRecoveryProcessing: disasterRecoveryProcessingInit,
@@ -106,32 +106,27 @@ function beginHook() {
         mockRequestBody = mockRequestBodyInit;
         alreadyConfigInit = true;
       }
-      console.log(
-        'ajaxHooker kp',
-        request,
-        dayjs().format('YYYY-MM-DD HH:mm:ss.SSS')
-      );
+      let isParamsReplace = false;
+      let isMock = false;
+
       const cacheKey = getCacheKey(request);
       if(mockEnabled){
         const isFindMock = mockList.find((item: any) => {
           // 检查Mock是否启用（enabled不为false）
           const isEnabled = item.enabled !== false;
           if (!isEnabled) return false;
-          
+
           if(isPathMatch) {
             const apartCurUrl = urlApart(request.url?.startsWith('http') ? request.url : window.location.origin + request.url);
-            return `${item.origin}${item.purePath}` === `${apartCurUrl.origin}${apartCurUrl.purePath}` && item.method === request.method;
+            return (`${item.origin}${item.purePath}` === `${apartCurUrl.origin}${apartCurUrl.purePath}`) && (item.method === request.method);
           } else {
             return item.cacheKey === cacheKey;
           }
         });
         if (isFindMock) {
-          if(mockResponse) {
-            request.data = isFindMock.params;
-            // request.headers = mock.headers;
-          }
           if(mockRequestBody) {
-            request.data = isFindMock.params;
+            request.data = typeof isFindMock.params === 'object' ? JSON.stringify(isFindMock.params) : isFindMock.params;
+            isParamsReplace = true;
           }
         }
       }
@@ -146,7 +141,6 @@ function beginHook() {
           (json: Record<string, any>) => {
             const { status } = checkStatus(request, resp, cacheKey);
             if (monitorEnabled) {
-              let isMock = false;
               let mockData = json;
               if (mockEnabled) {
                 // 🚀 性能优化：使用Map查找，时间复杂度从O(n)降到O(1)
@@ -154,7 +148,7 @@ function beginHook() {
                   // 检查Mock是否启用（enabled不为false）
                   const isEnabled = item.enabled !== false;
                   if (!isEnabled) return false;
-                  
+
                   if(isPathMatch) {
                     const apartCurUrl = urlApart(request.url?.startsWith('http') ? request.url : window.location.origin + request.url);
                     return `${item.origin}${item.purePath}` === `${apartCurUrl.origin}${apartCurUrl.purePath}` && item.method === request.method;
@@ -162,13 +156,20 @@ function beginHook() {
                     return item.cacheKey === cacheKey;
                   }
                 });
-                if (isFindMock && mockResponse) {
-                  json = isFindMock.response;
-                  mockData = isFindMock.response;
-                  resp.status = 200;
-                  resp.statusText = 'OK';
-                  isMock = true;
+                if (isFindMock) {
+                  if (mockResponse && !isParamsReplace) {
+                    json = isFindMock.response;
+                    mockData = isFindMock.response;
+                    resp.status = 200;
+                    resp.statusText = 'OK';
+                    isMock = true;
+                  } else if (isParamsReplace) {
+                    resp.status = 200;
+                    resp.statusText = 'OK';
+                    isParamsReplace = true;
+                  }
                 }
+                
               }
               console.log('发送数据 currentRequest');
               customEventSend('ajaxHook_to_content', {
@@ -182,6 +183,7 @@ function beginHook() {
                   headers: request.headers,
                   time: new Date().getTime(),
                   isMock,
+                  isParamsReplace,
                 },
               });
               if (isMock) {
@@ -232,7 +234,7 @@ function beginHook() {
 
     window.addEventListener('content_to_ajaxHook', (event) => {
       const { detail: { type, message } = {} } = event || {};
-      
+
       if (type?.endsWith('_change')) {
         const variableName = type.replace('_change', '');
         eval(`${variableName} = message`);
