@@ -7,9 +7,7 @@ import MonacoWebpackPlugin from 'monaco-editor-webpack-plugin';
 import express from 'express';
 const SSEStream = require('ssestream').default;
 
-
 class ChromePluginHMR {
-
   injectHMRCode({
     compilation,
     compiler,
@@ -28,7 +26,9 @@ class ChromePluginHMR {
     const originalSource = asset.source();
     if (originalSource.includes(judgeHMRCode)) return;
     const newSource = originalSource + '\n' + hmrClientCode;
-    compilation.assets[assetName] = new compiler.webpack.sources.RawSource(newSource);
+    compilation.assets[assetName] = new compiler.webpack.sources.RawSource(
+      newSource
+    );
   }
   static compiler: any = null;
   apply(compiler: any) {
@@ -38,7 +38,7 @@ class ChromePluginHMR {
     compiler.hooks.emit.tap('ChromePluginHMR', (compilation: any) => {
       // 只在开发模式下注入，并且确保只注入一次
       if (compiler.options.mode === 'development') {
-          const backgroundHmrClientCode = `
+        const backgroundHmrClientCode = `
 // HMR 客户端代码 - 由插件注入
 (function() {
   let eventSource = null;
@@ -77,16 +77,16 @@ class ChromePluginHMR {
   }
 })();
           `;
-          this.injectHMRCode({
-            compilation,
-            compiler,
-            assetName: 'src/background/index.js',
-            hmrClientCode: backgroundHmrClientCode,
-            judgeHMRCode: '// HMR 客户端代码 - 由插件注入',
-          });
-        }
-          // 检查是否已经包含HMR代码，避免重复注入
-          const contentHmrClientCode = `
+        this.injectHMRCode({
+          compilation,
+          compiler,
+          assetName: 'src/background/index.js',
+          hmrClientCode: backgroundHmrClientCode,
+          judgeHMRCode: '// HMR 客户端代码 - 由插件注入',
+        });
+      }
+      // 检查是否已经包含HMR代码，避免重复注入
+      const contentHmrClientCode = `
 // HMR 客户端代码 - 由插件注入
 // chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 //   if (message.type === 'reload') {
@@ -96,17 +96,15 @@ class ChromePluginHMR {
 // });
 `;
 
-          // 将HMR代码添加到background脚本的末尾
-          this.injectHMRCode({
-            compilation,
-            compiler,
-            assetName: 'src/content/index.js',
-            hmrClientCode: contentHmrClientCode,
-            judgeHMRCode: '// HMR 客户端代码 - 由插件注入',
-          });
-
-        },
-    );
+      // 将HMR代码添加到background脚本的末尾
+      this.injectHMRCode({
+        compilation,
+        compiler,
+        assetName: 'src/content/index.js',
+        hmrClientCode: contentHmrClientCode,
+        judgeHMRCode: '// HMR 客户端代码 - 由插件注入',
+      });
+    });
   }
 }
 
@@ -205,27 +203,32 @@ export default defineConfig(({ env, envMode, command }) => {
         const app = express();
         const savedCompiler = ChromePluginHMR.compiler;
         let currentSSEStream: any = null;
-         let hooksRegistered = false; // 防止重复注册hooks
-        
+        let hooksRegistered = false; // 防止重复注册hooks
+
         // 处理OPTIONS预检请求
         app.options('/hmr-sse', (req, res) => {
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-          res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
+          res.setHeader(
+            'Access-Control-Allow-Headers',
+            'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control'
+          );
           res.setHeader('Access-Control-Allow-Credentials', 'false');
           res.status(200).end();
         });
-        
-        
+
         app.get('/hmr-sse', (req, res, next) => {
           console.log('🔥 HMR: New SSE connection');
-          
-          // 设置CORS头部，允许跨域访问  
+
+          // 设置CORS头部，允许跨域访问
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-          res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
+          res.setHeader(
+            'Access-Control-Allow-Headers',
+            'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control'
+          );
           res.setHeader('Access-Control-Allow-Credentials', 'false');
-          
+
           const sseStream = new SSEStream(req);
           sseStream.pipe(res);
 
@@ -257,7 +260,10 @@ export default defineConfig(({ env, envMode, command }) => {
                     'utf-8',
                     (err) => {
                       if (err) {
-                        console.error('🔥 HMR: Failed to send reload signal:', err);
+                        console.error(
+                          '🔥 HMR: Failed to send reload signal:',
+                          err
+                        );
                         currentSSEStream = null;
                       }
                     }
@@ -321,7 +327,7 @@ export default defineConfig(({ env, envMode, command }) => {
             languages: ['json'],
           }),
           // 添加我们的HMR插件
-          new ChromePluginHMR()
+          isDev ? new ChromePluginHMR() : null
         );
         config.stats = {
           preset: 'normal', // 基础信息
