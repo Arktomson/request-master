@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { serverTempErrorCodes } from '@/config';
+import { serverTempErrorCodes } from '../config';
 export const ajaxInterface = function () {
   const version = '1.4.5';
   const hookInst = {

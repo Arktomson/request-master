@@ -89,7 +89,11 @@ import {
   ElIcon,
   ElCheckbox,
 } from 'element-plus';
-import { chromeLocalStorage, getMethodType, messageToContent } from '@/utils';
+import {
+  chromeLocalStorage,
+  getMethodType,
+  messageToContent,
+} from '../../../../utils';
 import { Edit, Delete } from '@element-plus/icons-vue';
 
 // 接收父组件传递的属性

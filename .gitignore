@@ -3,6 +3,8 @@ dist
 dist-prod
 dist-ssr
 cache
+.output
+.wxt
 
 # 依赖
 node_modules

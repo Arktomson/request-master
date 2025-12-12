@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { chromeLocalStorage, messageToContent } from '@/utils';
+import { chromeLocalStorage, messageToContent } from '../../../../utils';
 import { onMounted, ref } from 'vue'
 import { ElSwitch, ElSelect, ElOption } from 'element-plus';
 const sidebarIfCacheState = ref(false);

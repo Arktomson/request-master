@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { chromeLocalStorage } from "@/utils";
+import { chromeLocalStorage } from "../../utils";
 import { ref, reactive, onMounted, watch } from "vue";
 
 // 定义域名规则类型接口

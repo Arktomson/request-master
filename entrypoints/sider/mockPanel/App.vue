@@ -74,12 +74,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, toRaw, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import {
-  chromeLocalStorage,
-  urlApart,
-  messageToContent,
-  generateCacheKey,
-} from '@/utils';
+import { chromeLocalStorage, urlApart, messageToContent, generateCacheKey } from '../../../utils';
 // 导入组件
 import Header from './components/Header.vue';
 import MonitorSection from './components/MonitorSection.vue';

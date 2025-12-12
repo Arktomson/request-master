@@ -77,11 +77,11 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { ElMessage, ElButton, ElCheckbox, ElIcon } from 'element-plus';
 import { List, Document, DocumentCopy } from '@element-plus/icons-vue';
-import { chromeLocalStorage, messageToContent } from '@/utils';
+import { chromeLocalStorage, messageToContent } from '../../../../utils';
 import * as monaco from 'monaco-editor';
 import { debounce } from 'lodash-es';
-import { MonacoEditorConfig } from '@/config';
-import { EditorHeightManager } from '@/utils/monaco';
+import { MonacoEditorConfig } from '../../../../config';
+import { EditorHeightManager } from '../../../../utils/monaco';
 
 const { autoAdjust } = MonacoEditorConfig;
 

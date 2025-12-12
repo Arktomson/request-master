@@ -126,7 +126,7 @@ import {
   chromeLocalStorage,
   chromeSessionStorage,
   messageToContent,
-} from '@/utils/index';
+} from '../../utils';
 import { ref, onMounted, onUnmounted, nextTick, toRaw, watch } from 'vue';
 import { ElMessage, ElSwitch, ElTooltip } from 'element-plus';
 import { gsap } from 'gsap';

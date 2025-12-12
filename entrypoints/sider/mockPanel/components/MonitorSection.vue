@@ -85,7 +85,7 @@
 import { ref, computed } from 'vue';
 import { ElButton, ElInput, ElTag, ElTooltip, ElIcon } from 'element-plus';
 import { Delete, Search, Plus } from '@element-plus/icons-vue';
-import { getMethodType } from '@/utils';
+import { getMethodType } from '../../../../utils';
 
 
 interface RequestWithIndex {
